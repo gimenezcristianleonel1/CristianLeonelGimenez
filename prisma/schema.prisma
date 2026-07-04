@@ -1,0 +1,311 @@
+// ============================================================================
+// Esquema de base de datos - Sistema de Inventario y Finanzas
+// Diseñado de forma 100% genérica: Producto / Variante / Atributo,
+// sin ningún campo amarrado a un rubro específico (yerba, ropa, etc.)
+// ============================================================================
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+// ---------------------------------------------------------------------------
+// Configuración del sistema (genérico / configurable)
+// ---------------------------------------------------------------------------
+
+// Pares clave-valor para configuración general del negocio (moneda, nombre, etc.)
+model Setting {
+  key       String   @id
+  value     String
+  updatedAt DateTime @updatedAt
+
+  @@map("settings")
+}
+
+// Permite renombrar cualquier etiqueta de la interfaz sin tocar código.
+// Ej: fieldKey="product" -> label="Variante de Yerba"
+model FieldLabel {
+  id        Int      @id @default(autoincrement())
+  fieldKey  String   @unique
+  label     String
+  updatedAt DateTime @updatedAt
+
+  @@map("field_labels")
+}
+
+// ---------------------------------------------------------------------------
+// Catálogo: Producto / Variante / Atributo
+// ---------------------------------------------------------------------------
+
+model Category {
+  id          Int       @id @default(autoincrement())
+  name        String    @unique
+  description String?
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+  products    Product[]
+
+  @@map("categories")
+}
+
+// Un "Atributo" es una característica configurable (Ej: Molienda, Tamaño, Color)
+model Attribute {
+  id        Int               @id @default(autoincrement())
+  name      String            @unique
+  createdAt DateTime          @default(now())
+  values    AttributeValue[]
+
+  @@map("attributes")
+}
+
+// Un valor posible para un atributo (Ej: atributo "Molienda" -> valor "Suave")
+model AttributeValue {
+  id           Int                    @id @default(autoincrement())
+  attributeId  Int
+  value        String
+  attribute    Attribute              @relation(fields: [attributeId], references: [id], onDelete: Cascade)
+  variants     VariantAttributeValue[]
+
+  @@unique([attributeId, value])
+  @@map("attribute_values")
+}
+
+// Producto genérico (la "familia" de artículo, ej: "Yerba Mate Compuesta")
+model Product {
+  id           Int              @id @default(autoincrement())
+  name         String
+  sku          String           @unique
+  description  String?
+  categoryId   Int?
+  unit         String           @default("unidad")
+  minStock     Float            @default(0)
+  basePrice    Float            @default(0)
+  imageUrl     String?
+  isActive     Boolean          @default(true)
+  createdAt    DateTime         @default(now())
+  updatedAt    DateTime         @updatedAt
+
+  category     Category?        @relation(fields: [categoryId], references: [id])
+  variants     ProductVariant[]
+
+  @@index([categoryId])
+  @@map("products")
+}
+
+// Variante concreta y vendible de un producto (ej: "500g - Suave").
+// Todo producto tiene al menos una variante (por defecto autogenerada),
+// de forma que negocios simples no necesiten usar variantes explícitamente.
+model ProductVariant {
+  id               Int      @id @default(autoincrement())
+  productId        Int
+  sku              String   @unique
+  name             String
+  priceOverride    Float?
+  minStockOverride Float?
+  currentStock     Float    @default(0)
+  isActive         Boolean  @default(true)
+  isOnOffer        Boolean  @default(false)
+  offerPrice       Float?
+  isPublished      Boolean  @default(true) // visible en la tienda pública
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+
+  product          Product                 @relation(fields: [productId], references: [id], onDelete: Cascade)
+  attributeValues  VariantAttributeValue[]
+  stockMovements   StockMovement[]
+  saleItems        SaleItem[]
+  batchCosts       ProductionBatchCost[]
+
+  @@index([productId])
+  @@map("product_variants")
+}
+
+model VariantAttributeValue {
+  id               Int            @id @default(autoincrement())
+  variantId        Int
+  attributeValueId Int
+
+  variant          ProductVariant @relation(fields: [variantId], references: [id], onDelete: Cascade)
+  attributeValue   AttributeValue @relation(fields: [attributeValueId], references: [id], onDelete: Cascade)
+
+  @@unique([variantId, attributeValueId])
+  @@map("variant_attribute_values")
+}
+
+// ---------------------------------------------------------------------------
+// Proveedores
+// ---------------------------------------------------------------------------
+
+model Supplier {
+  id             Int             @id @default(autoincrement())
+  name           String
+  contactName    String?
+  phone          String?
+  email          String?
+  notes          String?
+  createdAt      DateTime        @default(now())
+  stockMovements StockMovement[]
+
+  @@map("suppliers")
+}
+
+// ---------------------------------------------------------------------------
+// Inventario: movimientos de stock (auditoría completa, entradas y salidas)
+// ---------------------------------------------------------------------------
+
+// SQLite no soporta enums nativos en Prisma: los siguientes campos "enum"
+// se modelan como String y se validan en la capa de aplicación (ver
+// src/lib/enums.ts y src/lib/validations.ts).
+// MovementType:   "ENTRADA" | "SALIDA"
+// MovementReason: "PRODUCCION" (entrada: producción propia) | "COMPRA" (entrada: compra a proveedor)
+//                 | "DEVOLUCION" (entrada: devolución de un cliente) | "VENTA" (salida: venta)
+//                 | "MERMA" (salida: descarte/rotura) | "MUESTRA" (salida: muestra/promoción)
+//                 | "AJUSTE" (entrada o salida: corrección manual de inventario)
+
+model StockMovement {
+  id          Int            @id @default(autoincrement())
+  variantId   Int
+  type        String
+  reason      String
+  quantity    Float
+  unitCost    Float?         // costo unitario de ingreso (solo entradas)
+  extraCost   Float          @default(0) // costos adicionales del lote (mano de obra, empaque, etc.)
+  lot         String?
+  supplierId  Int?
+  saleId      Int?
+  notes       String?
+  date        DateTime       @default(now())
+  createdAt   DateTime       @default(now())
+
+  variant     ProductVariant @relation(fields: [variantId], references: [id])
+  supplier    Supplier?      @relation(fields: [supplierId], references: [id])
+  sale        Sale?          @relation(fields: [saleId], references: [id])
+
+  @@index([variantId])
+  @@index([date])
+  @@map("stock_movements")
+}
+
+// Costo adicional asociado a un lote de producción específico
+// (ej: mano de obra, empaque) usado para refinar el costo promedio ponderado.
+model ProductionBatchCost {
+  id         Int            @id @default(autoincrement())
+  variantId  Int
+  lot        String?
+  concept    String
+  amount     Float
+  date       DateTime       @default(now())
+  createdAt  DateTime       @default(now())
+
+  variant    ProductVariant @relation(fields: [variantId], references: [id])
+
+  @@map("production_batch_costs")
+}
+
+// ---------------------------------------------------------------------------
+// Costos fijos del negocio (alquiler, sueldos, servicios, etc.)
+// ---------------------------------------------------------------------------
+
+// CostFrequency: "UNICO" | "SEMANAL" | "MENSUAL" | "ANUAL"
+model FixedCost {
+  id        Int           @id @default(autoincrement())
+  name      String
+  amount    Float
+  frequency String        @default("MENSUAL")
+  startDate DateTime      @default(now())
+  endDate   DateTime?
+  notes     String?
+  isActive  Boolean       @default(true)
+  createdAt DateTime      @default(now())
+  updatedAt DateTime      @updatedAt
+
+  @@map("fixed_costs")
+}
+
+// ---------------------------------------------------------------------------
+// Ventas / Punto de venta
+// ---------------------------------------------------------------------------
+
+// PaymentMethod: "EFECTIVO" | "TRANSFERENCIA" | "TARJETA"
+// SaleStatus:    "COMPLETADA" | "ANULADA"
+model Sale {
+  id           Int             @id @default(autoincrement())
+  date         DateTime        @default(now())
+  subtotal     Float
+  discount     Float           @default(0)
+  total        Float
+  paymentMethod String
+  status       String          @default("COMPLETADA")
+  cashSessionId Int?
+  notes        String?
+  createdAt    DateTime        @default(now())
+
+  cashSession  CashSession?    @relation(fields: [cashSessionId], references: [id])
+  items        SaleItem[]
+  stockMovements StockMovement[]
+
+  @@index([date])
+  @@index([cashSessionId])
+  @@map("sales")
+}
+
+model SaleItem {
+  id         Int            @id @default(autoincrement())
+  saleId     Int
+  variantId  Int
+  quantity   Float
+  unitPrice  Float
+  unitCost   Float          @default(0) // costo promedio ponderado al momento de la venta (para reportes históricos)
+  discount   Float          @default(0)
+  subtotal   Float
+
+  sale       Sale           @relation(fields: [saleId], references: [id], onDelete: Cascade)
+  variant    ProductVariant @relation(fields: [variantId], references: [id])
+
+  @@index([saleId])
+  @@index([variantId])
+  @@map("sale_items")
+}
+
+// ---------------------------------------------------------------------------
+// Caja diaria
+// ---------------------------------------------------------------------------
+
+// CashSessionStatus: "ABIERTA" | "CERRADA"
+model CashSession {
+  id              Int               @id @default(autoincrement())
+  openedAt        DateTime          @default(now())
+  closedAt        DateTime?
+  openingAmount   Float             @default(0)
+  closingAmount   Float?
+  expectedClosing Float?
+  difference      Float?
+  status          String            @default("ABIERTA")
+  notes           String?
+
+  sales           Sale[]
+  cashMovements   CashMovement[]
+
+  @@map("cash_sessions")
+}
+
+// CashMovementType: "INGRESO" | "EGRESO"
+// Movimientos manuales de dinero no asociados directamente a una venta
+// (ej: retiro de efectivo, pago de un proveedor en efectivo, etc.)
+model CashMovement {
+  id            Int              @id @default(autoincrement())
+  cashSessionId Int
+  type          String
+  concept       String
+  amount        Float
+  date          DateTime         @default(now())
+
+  cashSession   CashSession      @relation(fields: [cashSessionId], references: [id], onDelete: Cascade)
+
+  @@index([cashSessionId])
+  @@map("cash_movements")
+}
