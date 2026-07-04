@@ -18,7 +18,7 @@ export function StatCard({
     default: "text-gray-900 dark:text-gray-100",
     positive: "text-emerald-600 dark:text-emerald-400",
     negative: "text-red-600 dark:text-red-400",
-    warning: "text-amber-600 dark:text-amber-400",
+    warning: "text-accent-600 dark:text-accent-400",
   };
 
   return (

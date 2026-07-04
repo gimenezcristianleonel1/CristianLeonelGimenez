@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
-import { ShoppingCart, Moon, Sun, Sprout } from "lucide-react";
+import { ShoppingCart, Moon, Sun, Leaf } from "lucide-react";
 import { useTheme } from "@/components/providers/ThemeProvider";
 import { api } from "@/lib/api-client";
 import { OfferBanner, OfferItem } from "@/components/store/OfferBanner";
@@ -34,7 +34,6 @@ export default function StorefrontPage() {
   const [cart, setCart] = useState<CartLine[]>([]);
   const [cartOpen, setCartOpen] = useState(false);
   const [checkoutOpen, setCheckoutOpen] = useState(false);
-  const [orderSuccess, setOrderSuccess] = useState<string | null>(null);
   const { theme, toggle } = useTheme();
 
   useEffect(() => {
@@ -116,18 +115,16 @@ export default function StorefrontPage() {
     });
 
     const message = buildWhatsAppOrderMessage(cart, total, currency, data.customerName);
-    if (catalog?.whatsappNumber) {
-      const link = buildWhatsAppLink(catalog.whatsappNumber, message);
-      window.open(link, "_blank");
-    } else {
-      setOrderSuccess("Pedido registrado. El negocio todavía no configuró un número de WhatsApp de contacto.");
-    }
+    const whatsappLink = catalog?.whatsappNumber
+      ? buildWhatsAppLink(catalog.whatsappNumber, message)
+      : null;
 
     setCart([]);
-    setCheckoutOpen(false);
     setCartOpen(false);
     const catalogData = await api.get<Catalog>("/api/public/catalog");
     setCatalog(catalogData);
+
+    return { whatsappLink };
   }
 
   const cartCount = cart.reduce((acc, l) => acc + l.quantity, 0);
@@ -138,7 +135,7 @@ export default function StorefrontPage() {
         <div className="mx-auto flex max-w-6xl items-center justify-between px-4 py-3">
           <div className="flex items-center gap-2">
             <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-brand-600 text-white">
-              <Sprout size={20} />
+              <Leaf size={20} />
             </div>
             <div>
               <p className="font-semibold leading-tight">{catalog?.businessName ?? "Cargando..."}</p>
@@ -170,12 +167,6 @@ export default function StorefrontPage() {
       </header>
 
       <main className="mx-auto max-w-6xl space-y-8 px-4 py-6">
-        {orderSuccess && (
-          <div className="rounded-lg border border-emerald-300 bg-emerald-50 px-4 py-3 text-sm text-emerald-800 dark:border-emerald-900/50 dark:bg-emerald-900/10 dark:text-emerald-300">
-            {orderSuccess}
-          </div>
-        )}
-
         <OfferBanner offers={offers} currency={currency} onAdd={addToCart} />
 
         <section>

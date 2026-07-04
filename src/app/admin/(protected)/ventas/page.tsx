@@ -149,7 +149,7 @@ export default function VentasPage() {
       <h1 className="text-xl font-semibold">Ventas (Punto de venta)</h1>
 
       {!cashSessionId && (
-        <div className="rounded-lg border border-amber-300 bg-amber-50 px-4 py-2 text-sm text-amber-800 dark:border-amber-900/50 dark:bg-amber-900/10 dark:text-amber-300">
+        <div className="rounded-lg border border-accent-300 bg-accent-50 px-4 py-2 text-sm text-accent-800 dark:border-accent-900/50 dark:bg-accent-900/10 dark:text-accent-300">
           No hay una caja abierta. Podés registrar la venta igual, pero se recomienda abrir caja primero en la
           sección Caja.
         </div>
@@ -181,7 +181,7 @@ export default function VentasPage() {
                       {formatCurrency(price, currency)}
                     </span>
                     {v.isOnOffer && (
-                      <span className="rounded-full bg-amber-100 px-1.5 py-0.5 text-[10px] font-medium text-amber-700 dark:bg-amber-900/30 dark:text-amber-400">
+                      <span className="rounded-full bg-accent-100 px-1.5 py-0.5 text-[10px] font-medium text-accent-700 dark:bg-accent-900/30 dark:text-accent-400">
                         OFERTA
                       </span>
                     )}

@@ -105,7 +105,7 @@ async function main() {
     create: {
       productId: product.id,
       sku: "YM-COMP-SUAVE-500",
-      name: "Yerba Mate Compuesta - Suave 500g",
+      name: "Suave 500g",
       priceOverride: 3500,
       isActive: true,
     },
@@ -116,7 +116,7 @@ async function main() {
     create: {
       productId: product.id,
       sku: "YM-COMP-FUERTE-1KG",
-      name: "Yerba Mate Compuesta - Fuerte 1kg",
+      name: "Fuerte 1kg",
       priceOverride: 6500,
       isActive: true,
       isOnOffer: true,

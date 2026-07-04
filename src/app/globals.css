@@ -12,6 +12,21 @@ html.dark {
 
 body {
   @apply bg-gray-50 text-gray-900 dark:bg-gray-950 dark:text-gray-100;
+  /* Textura sutil tipo arpillera/bolsa de campo, apenas perceptible. */
+  background-image:
+    repeating-linear-gradient(45deg, rgba(74, 101, 56, 0.035) 0px, rgba(74, 101, 56, 0.035) 1px, transparent 1px, transparent 9px),
+    repeating-linear-gradient(-45deg, rgba(74, 101, 56, 0.035) 0px, rgba(74, 101, 56, 0.035) 1px, transparent 1px, transparent 9px);
+  background-attachment: fixed;
+}
+
+html.dark body {
+  background-image:
+    repeating-linear-gradient(45deg, rgba(0, 0, 0, 0.12) 0px, rgba(0, 0, 0, 0.12) 1px, transparent 1px, transparent 9px),
+    repeating-linear-gradient(-45deg, rgba(0, 0, 0, 0.12) 0px, rgba(0, 0, 0, 0.12) 1px, transparent 1px, transparent 9px);
+}
+
+h1, h2, h3 {
+  @apply font-heading tracking-tight;
 }
 
 ::-webkit-scrollbar {
@@ -26,11 +41,11 @@ body {
 }
 
 .card {
-  @apply rounded-xl border border-gray-200 bg-white shadow-sm dark:border-gray-800 dark:bg-gray-900;
+  @apply rounded-lg border border-gray-200 bg-white shadow-sm dark:border-gray-800 dark:bg-gray-900;
 }
 
 .input {
-  @apply w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900 placeholder-gray-400 outline-none transition focus:border-brand-500 focus:ring-2 focus:ring-brand-500/20 dark:border-gray-700 dark:bg-gray-900 dark:text-gray-100 dark:placeholder-gray-500;
+  @apply w-full rounded-md border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900 placeholder-gray-400 outline-none transition focus:border-brand-500 focus:ring-2 focus:ring-brand-500/20 dark:border-gray-700 dark:bg-gray-900 dark:text-gray-100 dark:placeholder-gray-500;
 }
 
 .label {
@@ -38,7 +53,7 @@ body {
 }
 
 .btn {
-  @apply inline-flex items-center justify-center gap-2 rounded-lg px-4 py-2 text-sm font-medium transition disabled:cursor-not-allowed disabled:opacity-50;
+  @apply inline-flex items-center justify-center gap-2 rounded-md px-4 py-2 text-sm font-medium transition disabled:cursor-not-allowed disabled:opacity-50;
 }
 .btn-primary {
   @apply btn bg-brand-600 text-white hover:bg-brand-700;
@@ -47,5 +62,5 @@ body {
   @apply btn border border-gray-300 bg-white text-gray-700 hover:bg-gray-50 dark:border-gray-700 dark:bg-gray-900 dark:text-gray-200 dark:hover:bg-gray-800;
 }
 .btn-danger {
-  @apply btn bg-red-600 text-white hover:bg-red-700;
+  @apply btn bg-red-700 text-white hover:bg-red-800;
 }

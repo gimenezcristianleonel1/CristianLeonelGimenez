@@ -1,9 +1,10 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { Save } from "lucide-react";
+import { Save, MessageCircle } from "lucide-react";
 import { api, ApiClientError } from "@/lib/api-client";
 import { useAppConfig } from "@/components/providers/AppConfigProvider";
+import { buildWhatsAppLink } from "@/lib/whatsapp";
 
 const LABEL_FIELDS: { key: string; hint: string }[] = [
   { key: "product", hint: 'Ej: "Producto" → "Variante de Yerba"' },
@@ -25,26 +26,44 @@ const SETTING_FIELDS: { key: string; label: string; hint: string; type?: string 
   { key: "business_name", label: "Nombre del negocio", hint: "Se muestra en el panel y en la tienda pública" },
   { key: "currency_symbol", label: "Símbolo de moneda", hint: 'Ej: "$", "US$"' },
   { key: "store_tagline", label: "Bajada / eslogan de la tienda", hint: "Frase corta debajo del nombre" },
-  {
-    key: "whatsapp_number",
-    label: "Número de WhatsApp (con código de país, solo dígitos)",
-    hint: "Ej: 5493751123456. A este número llegan los pedidos de la tienda pública.",
-  },
 ];
 
 export default function ConfiguracionPage() {
   const { labels, settings, refresh } = useAppConfig();
   const [labelForm, setLabelForm] = useState<Record<string, string>>({});
   const [settingForm, setSettingForm] = useState<Record<string, string>>({});
+  const [whatsappNumber, setWhatsappNumber] = useState("");
   const [savingLabels, setSavingLabels] = useState(false);
   const [savingSettings, setSavingSettings] = useState(false);
+  const [savingWhatsapp, setSavingWhatsapp] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     setLabelForm(labels);
     setSettingForm(settings);
+    setWhatsappNumber(settings.whatsapp_number ?? "");
   }, [labels, settings]);
+
+  async function saveWhatsapp() {
+    setSavingWhatsapp(true);
+    setError(null);
+    setMessage(null);
+    try {
+      await api.put("/api/config/settings", [{ key: "whatsapp_number", value: whatsappNumber }]);
+      await refresh();
+      setMessage("Número de WhatsApp guardado.");
+    } catch (err) {
+      setError(err instanceof ApiClientError ? err.message : "Error al guardar el número");
+    } finally {
+      setSavingWhatsapp(false);
+    }
+  }
+
+  function testWhatsapp() {
+    const link = buildWhatsAppLink(whatsappNumber, "Hola, este es un mensaje de prueba desde mi tienda online.");
+    window.open(link, "_blank");
+  }
 
   async function saveLabels() {
     setSavingLabels(true);
@@ -84,6 +103,35 @@ export default function ConfiguracionPage() {
 
       {message && <p className="text-sm text-emerald-600 dark:text-emerald-400">{message}</p>}
       {error && <p className="text-sm text-red-600 dark:text-red-400">{error}</p>}
+
+      <div className="card border-emerald-200 p-4 dark:border-emerald-900/50">
+        <h2 className="mb-1 flex items-center gap-2 text-sm font-semibold text-gray-700 dark:text-gray-300">
+          <MessageCircle size={16} className="text-emerald-600 dark:text-emerald-400" /> WhatsApp de la tienda
+        </h2>
+        <p className="mb-3 text-xs text-gray-400">
+          A este número llegan los pedidos que confirman tus clientes desde la tienda pública.
+        </p>
+        <div className="flex flex-col gap-2 sm:flex-row">
+          <input
+            className="input"
+            placeholder="Ej: 5493751123456 (código de país + número, solo dígitos)"
+            value={whatsappNumber}
+            onChange={(e) => setWhatsappNumber(e.target.value)}
+          />
+          <button className="btn-primary shrink-0" onClick={saveWhatsapp} disabled={savingWhatsapp}>
+            <Save size={16} /> {savingWhatsapp ? "Guardando..." : "Guardar mi WhatsApp"}
+          </button>
+          <button
+            type="button"
+            className="btn-secondary shrink-0"
+            onClick={testWhatsapp}
+            disabled={!whatsappNumber}
+            title="Abre WhatsApp con un mensaje de prueba para verificar que el número es correcto"
+          >
+            Probar
+          </button>
+        </div>
+      </div>
 
       <div className="card p-4">
         <h2 className="mb-1 text-sm font-semibold text-gray-700 dark:text-gray-300">Datos del negocio</h2>

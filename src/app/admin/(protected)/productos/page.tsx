@@ -260,7 +260,7 @@ function ProductRow({
                       )}
                     </td>
                     <td className="py-2 text-center">
-                      {v.isOnOffer && <Percent size={14} className="mx-auto text-amber-500" />}
+                      {v.isOnOffer && <Percent size={14} className="mx-auto text-accent-500" />}
                     </td>
                     <td className="py-2 text-center">
                       {v.isPublished ? (
@@ -609,7 +609,7 @@ function VariantModal({
           </div>
         )}
 
-        <div className="rounded-lg border border-amber-200 bg-amber-50 p-3 dark:border-amber-900/50 dark:bg-amber-900/10">
+        <div className="rounded-lg border border-accent-200 bg-accent-50 p-3 dark:border-accent-900/50 dark:bg-accent-900/10">
           <label className="mb-2 flex items-center gap-2 text-sm font-medium">
             <input
               type="checkbox"

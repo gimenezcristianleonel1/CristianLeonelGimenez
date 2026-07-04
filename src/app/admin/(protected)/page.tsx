@@ -13,9 +13,10 @@ import {
   Legend,
   BarChart,
 } from "recharts";
-import { TrendingUp, DollarSign, AlertTriangle, Wallet } from "lucide-react";
+import Link from "next/link";
+import { TrendingUp, DollarSign, AlertTriangle, Wallet, MessageCircle } from "lucide-react";
 import { api } from "@/lib/api-client";
-import { useCurrency } from "@/components/providers/AppConfigProvider";
+import { useAppConfig, useCurrency } from "@/components/providers/AppConfigProvider";
 import { formatCurrency, formatNumber } from "@/lib/format";
 import { StatCard } from "@/components/ui/StatCard";
 
@@ -44,6 +45,7 @@ export default function DashboardPage() {
   const [days, setDays] = useState(30);
   const [loading, setLoading] = useState(true);
   const currency = useCurrency();
+  const { settings } = useAppConfig();
 
   useEffect(() => {
     setLoading(true);
@@ -58,6 +60,18 @@ export default function DashboardPage() {
 
   return (
     <div className="space-y-6">
+      {!settings.whatsapp_number && (
+        <div className="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-accent-300 bg-accent-50 px-4 py-3 text-sm text-accent-800 dark:border-accent-900/50 dark:bg-accent-900/10 dark:text-accent-300">
+          <span className="flex items-center gap-2">
+            <MessageCircle size={16} /> Todavía no configuraste tu número de WhatsApp: los clientes de la tienda
+            pública no van a poder enviarte pedidos.
+          </span>
+          <Link href="/admin/configuracion" className="btn-primary shrink-0">
+            Agregar mi WhatsApp
+          </Link>
+        </div>
+      )}
+
       <div className="flex flex-wrap items-center justify-between gap-3">
         <h1 className="text-xl font-semibold">Dashboard</h1>
         <div className="flex gap-1 rounded-lg border border-gray-200 p-1 dark:border-gray-800">
@@ -120,8 +134,8 @@ export default function DashboardPage() {
                   <YAxis fontSize={12} />
                   <Tooltip formatter={(v: number) => formatCurrency(v, currency)} />
                   <Legend />
-                  <Bar dataKey="total" name="Ventas" fill="#22c55e" radius={[4, 4, 0, 0]} />
-                  <Line dataKey="profit" name="Ganancia neta" stroke="#0ea5e9" strokeWidth={2} />
+                  <Bar dataKey="total" name="Ventas" fill="#61804a" radius={[3, 3, 0, 0]} />
+                  <Line dataKey="profit" name="Ganancia neta" stroke="#c2692c" strokeWidth={2} />
                 </ComposedChart>
               </ResponsiveContainer>
             </div>
@@ -136,7 +150,7 @@ export default function DashboardPage() {
                   <XAxis type="number" fontSize={12} />
                   <YAxis dataKey="name" type="category" width={110} fontSize={11} />
                   <Tooltip formatter={(v: number) => formatNumber(v)} />
-                  <Bar dataKey="quantitySold" name="Cantidad" fill="#16a34a" radius={[0, 4, 4, 0]} />
+                  <Bar dataKey="quantitySold" name="Cantidad" fill="#3a4f2c" radius={[0, 3, 3, 0]} />
                 </BarChart>
               </ResponsiveContainer>
             </div>

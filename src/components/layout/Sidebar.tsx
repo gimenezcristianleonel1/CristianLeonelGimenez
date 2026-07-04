@@ -11,7 +11,7 @@ import {
   ShoppingCart,
   Wallet,
   Settings,
-  Sprout,
+  Leaf,
 } from "lucide-react";
 import { useLabel } from "@/components/providers/AppConfigProvider";
 
@@ -33,7 +33,7 @@ export function Sidebar({ onNavigate }: { onNavigate?: () => void }) {
     <aside className="flex h-full w-64 flex-col border-r border-gray-200 bg-white dark:border-gray-800 dark:bg-gray-900">
       <div className="flex items-center gap-2 px-5 py-5">
         <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-brand-600 text-white">
-          <Sprout size={20} />
+          <Leaf size={20} />
         </div>
         <div>
           <p className="text-sm font-semibold leading-tight">Inventario &amp; Finanzas</p>

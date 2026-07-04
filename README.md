@@ -10,14 +10,17 @@ por contraseña.
 ## Stack técnico
 
 - **Next.js 14** (App Router) full-stack: páginas React + API Routes en el
-  mismo proyecto.
-- **Prisma ORM** + **SQLite** (archivo local, sin necesidad de instalar un
-  servidor de base de datos).
-- **Tailwind CSS** para el frontend (modo claro/oscuro).
+  mismo proyecto. Se despliega en **Netlify**.
+- **Prisma ORM** + **PostgreSQL** (pensado para un proyecto gratuito de
+  [Supabase](https://supabase.com), aunque funciona con cualquier Postgres:
+  Neon, Railway, RDS, etc.).
+- **Tailwind CSS** para el frontend, con una identidad visual rústica/de
+  campo (verde monte, terracota, papel/madera) pensada para un negocio de
+  producción y venta de Yerba Mate, con soporte de modo claro/oscuro.
 - **Recharts** para los gráficos del dashboard.
 - **Zod** para validación exhaustiva de datos de entrada.
 - Autenticación de administrador simple (contraseña única + cookie firmada),
-  pensada para uso local de un solo dueño de negocio.
+  pensada para un único dueño de negocio.
 
 ## Estructura del proyecto
 
@@ -49,15 +52,20 @@ src/
   lib/
     stock.ts              # Lógica transaccional de stock, ventas, PPP y márgenes
     auth.ts               # Firma/verificación de la sesión de administrador
-    enums.ts              # Tipos de los campos "enum" (SQLite no soporta enums nativos)
+    enums.ts              # Tipos de los campos "enum" (Postgres vía Prisma se modela como String)
     validations.ts         # Esquemas Zod de cada endpoint
   middleware.ts           # Protege /admin/* y la API contra acceso sin sesión
+netlify.toml              # Build command + plugin de Netlify para Next.js
 ```
 
 ## Requisitos previos
 
 - Node.js 18 o superior
 - npm 9 o superior
+- Una base de datos PostgreSQL. Este proyecto ya viene con un proyecto
+  gratuito de Supabase creado (`yerba-inventario-finanzas`, región
+  `sa-east-1`) — solo falta que obtengas su contraseña (ver abajo). También
+  podés usar cualquier otro Postgres (Neon, Railway, uno local, etc.).
 
 ## Instalación
 
@@ -67,34 +75,41 @@ src/
    npm install
    ```
 
-2. Configurar variables de entorno:
+2. Obtené la cadena de conexión de la base de datos:
+
+   - Entrá a [supabase.com/dashboard](https://supabase.com/dashboard), abrí el
+     proyecto **yerba-inventario-finanzas**.
+   - Andá a **Project Settings > Database > Connection string**.
+   - Copiá la cadena en modo **Transaction pooler** (puerto `6543`) para
+     `DATABASE_URL`, y la de modo **Session/Direct** (puerto `5432`) para
+     `DIRECT_URL`. Ambas usan la misma contraseña de la base (la que elegiste
+     o generaste al crear el proyecto).
+
+3. Configurar variables de entorno:
 
    ```bash
    cp .env.example .env
    ```
 
-   Editá `.env` y definí:
+   Editá `.env` y completá:
 
-   - `DATABASE_URL`: por defecto `file:./dev.db` (SQLite local, no requiere cambios).
+   - `DATABASE_URL` y `DIRECT_URL`: las cadenas de conexión del paso anterior.
    - `ADMIN_PASSWORD`: la contraseña para entrar a `/admin`. **Cambiala por una propia.**
    - `ADMIN_SESSION_SECRET`: una cadena larga y aleatoria para firmar la sesión
      (podés generarla con `openssl rand -hex 32`).
 
-3. Crear la base de datos y aplicar las migraciones:
+4. Aplicar las migraciones (crea todas las tablas en la base):
 
    ```bash
-   npx prisma migrate dev
+   npx prisma migrate deploy
    ```
 
-4. Cargar datos de ejemplo (categorías, productos, un costo fijo y una venta
+5. Cargar datos de ejemplo (categorías, productos, un costo fijo y una venta
    de muestra, todo con la Yerba Mate como caso de uso):
 
    ```bash
    npx prisma db seed
    ```
-
-   (Este paso se ejecuta automáticamente la primera vez que corrés
-   `prisma migrate dev`; volvé a ejecutarlo manualmente si limpiás la base.)
 
 ## Correr en modo desarrollo
 
@@ -105,6 +120,29 @@ npm run dev
 - Tienda pública: http://localhost:3000
 - Panel de administración: http://localhost:3000/admin (pide la contraseña
   definida en `ADMIN_PASSWORD`)
+
+## Desplegar en Netlify (gratis)
+
+1. Subí este repositorio a GitHub (o el proveedor que uses).
+2. En [Netlify](https://app.netlify.com), **Add new site > Import an existing
+   project**, y elegí el repositorio. Netlify detecta Next.js automáticamente
+   y usa el `netlify.toml` incluido (que ya define el build command y el
+   plugin `@netlify/plugin-nextjs`).
+3. En **Site settings > Environment variables**, cargá:
+   - `DATABASE_URL` y `DIRECT_URL` (las mismas del paso de instalación local).
+   - `ADMIN_PASSWORD`
+   - `ADMIN_SESSION_SECRET`
+4. Desplegá. El build corre automáticamente `prisma generate` y
+   `prisma migrate deploy` antes de compilar, así que la base queda al día en
+   cada deploy sin pasos manuales.
+5. Una vez desplegado, entrá a `/admin/configuracion` y cargá el nombre del
+   negocio, moneda y número de WhatsApp real de la tienda.
+
+**Sobre la base de datos gratuita:** los proyectos gratuitos de Supabase se
+pausan automáticamente tras ~1 semana sin actividad (no se pierden datos,
+pero hay que reactivarlos a mano desde el dashboard). Para que esto no
+interrumpa la tienda, se configuró una rutina que hace un chequeo semanal
+automático a la base para mantenerla activa.
 
 ## Scripts disponibles
 
@@ -193,13 +231,21 @@ configuración general.
 ## Notas y próximos pasos sugeridos
 
 - El proyecto usa Next.js 14.2.35 (última versión de la rama 14.2 al momento
-  de escribir esto). `npm audit` puede seguir mostrando avisos relacionados
-  con funciones no usadas en esta app (optimización de imágenes, WebSockets,
-  i18n); si vas a exponer esta app a internet, considerá migrar a Next 15/16
-  más adelante.
+  de escribir esto). `npm audit` puede seguir mostrando avisos de funciones
+  que esta app no usa (optimización de imágenes, WebSockets, i18n); si más
+  adelante querés actualizar, se puede migrar a Next 15/16.
 - La autenticación de administrador es intencionalmente simple (una sola
-  contraseña compartida, sin roles ni múltiples usuarios), pensada para uso
-  local de un solo dueño de negocio.
+  contraseña compartida, sin roles ni múltiples usuarios), pensada para un
+  solo dueño de negocio.
 - El concepto de "oferta" es por variante (precio promocional + marca
   on/off). No incluye promociones combinadas por cantidad (ej. "3x2" o
   descuentos por volumen); se puede sumar más adelante como un módulo aparte.
+- **Row Level Security (RLS) de Supabase:** la base tiene RLS deshabilitado
+  en todas las tablas. Esto normalmente sería un riesgo si el frontend usara
+  el cliente `supabase-js` con la clave pública (anon key), porque esa clave
+  expondría las tablas directamente al navegador. Esta app **no hace eso**:
+  toda la base se accede exclusivamente desde el servidor (Prisma + rutas
+  `/api/*` de Next.js), usando la conexión directa a Postgres, nunca la
+  anon key ni el cliente de Supabase en el navegador. Si en el futuro
+  agregás `supabase-js` en el frontend o Supabase Auth, activá RLS con
+  políticas antes de hacerlo.
