@@ -6,7 +6,8 @@ export function buildWhatsAppOrderMessage(
   lines: WhatsAppCartLine[],
   total: number,
   currencySymbol: string,
-  customerName?: string
+  customerName?: string,
+  customerAddress?: string
 ): string {
   const header = customerName
     ? `¡Hola! Soy ${customerName} y quiero hacer un pedido:`
@@ -14,7 +15,8 @@ export function buildWhatsAppOrderMessage(
   const body = lines
     .map((l) => `- ${l.quantity}x ${l.name} (${formatCurrency(l.quantity * l.unitPrice, currencySymbol)})`)
     .join("\n");
-  const footer = `Total: ${formatCurrency(total, currencySymbol)}. ¿Cómo coordinamos el pago y el envío?`;
+  const addressLine = customerAddress ? `\nDirección de envío: ${customerAddress}` : "";
+  const footer = `Total: ${formatCurrency(total, currencySymbol)}.${addressLine}\n¿Cómo coordinamos el pago y el envío?`;
   return `${header}\n${body}\n\n${footer}`;
 }
 

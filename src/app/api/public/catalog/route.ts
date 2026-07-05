@@ -1,6 +1,6 @@
 import { prisma } from "@/lib/prisma";
 import { errorResponse, jsonOk } from "@/lib/api-utils";
-import { effectiveSalePrice, effectivePrice } from "@/lib/stock";
+import { effectiveSalePrice, effectivePrice, getActiveBenefitsMap } from "@/lib/stock";
 import { getSettings } from "@/lib/config";
 
 export async function GET() {
@@ -17,6 +17,9 @@ export async function GET() {
       getSettings(),
     ]);
 
+    const allVariantIds = products.flatMap((p) => p.variants.map((v) => v.id));
+    const benefitsMap = await getActiveBenefitsMap(allVariantIds);
+
     const items = products
       .filter((p) => p.variants.length > 0)
       .map((product) => ({
@@ -26,15 +29,19 @@ export async function GET() {
         imageUrl: product.imageUrl,
         categoryId: product.categoryId,
         categoryName: product.category?.name ?? null,
-        variants: product.variants.map((v) => ({
-          variantId: v.id,
-          name: v.name,
-          sku: v.sku,
-          stock: v.currentStock,
-          regularPrice: effectivePrice(v, product),
-          price: effectiveSalePrice(v, product),
-          isOnOffer: v.isOnOffer && v.offerPrice != null,
-        })),
+        variants: product.variants.map((v) => {
+          const benefit = benefitsMap.get(v.id);
+          return {
+            variantId: v.id,
+            name: v.name,
+            sku: v.sku,
+            stock: v.currentStock,
+            regularPrice: effectivePrice(v, product),
+            price: effectiveSalePrice(v, product, benefit),
+            isOnOffer: Boolean(benefit),
+            offerEndDate: benefit?.endDate ?? null,
+          };
+        }),
       }));
 
     return jsonOk({

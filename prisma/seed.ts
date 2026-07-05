@@ -21,11 +21,11 @@ const DEFAULT_LABELS: Record<string, string> = {
 };
 
 const DEFAULT_SETTINGS: Record<string, string> = {
-  business_name: "Mi Negocio",
+  business_name: "Aramí del Monte",
   currency_symbol: "$",
   low_stock_alert_enabled: "true",
   whatsapp_number: "",
-  store_tagline: "Producción y venta directa",
+  store_tagline: "Yerba mate de producción propia, directo del monte a tu mate",
 };
 
 async function main() {
@@ -119,10 +119,27 @@ async function main() {
       name: "Fuerte 1kg",
       priceOverride: 6500,
       isActive: true,
-      isOnOffer: true,
-      offerPrice: 5800,
     },
   });
+
+  console.log("Sembrando beneficio de ejemplo (oferta temporal vigente)...");
+  const existingBenefit = await prisma.benefit.findFirst({ where: { variantId: variantFuerte1kg.id } });
+  if (!existingBenefit) {
+    const now = new Date();
+    const start = new Date(now);
+    start.setDate(start.getDate() - 2);
+    const end = new Date(now);
+    end.setDate(end.getDate() + 12);
+    await prisma.benefit.create({
+      data: {
+        variantId: variantFuerte1kg.id,
+        type: "PERCENTAGE",
+        value: 15,
+        startDate: start,
+        endDate: end,
+      },
+    });
+  }
 
   for (const [variantId, attributeValueId] of [
     [variantSuave500.id, suave.id],
@@ -243,6 +260,61 @@ async function main() {
       });
       await tx.productVariant.update({
         where: { id: variantSuave500.id },
+        data: { currentStock: { decrement: qty } },
+      });
+    });
+  }
+
+  console.log("Sembrando cliente y pedido online de ejemplo...");
+  const customer = await prisma.customer.upsert({
+    where: { whatsapp: "5493751234567" },
+    update: {},
+    create: {
+      name: "María Ferreyra",
+      whatsapp: "5493751234567",
+      address: "Av. San Martín 450, Posadas, Misiones",
+    },
+  });
+
+  const existingOrder = await prisma.order.findFirst({ where: { customerId: customer.id } });
+  if (!existingOrder) {
+    await prisma.$transaction(async (tx) => {
+      const qty = 2;
+      const unitPrice = variantFuerte1kg.priceOverride ?? 6500;
+      const priceAtPurchase = unitPrice * 0.85; // refleja el beneficio del 15% sembrado arriba
+      const subtotal = qty * priceAtPurchase;
+
+      const order = await tx.order.create({
+        data: {
+          customerId: customer.id,
+          total: subtotal,
+          shippingAddress: customer.address,
+          paymentStatus: "PENDIENTE",
+          shippingStatus: "PREPARANDO",
+          items: {
+            create: [
+              {
+                variantId: variantFuerte1kg.id,
+                quantity: qty,
+                priceAtPurchase,
+                subtotal,
+              },
+            ],
+          },
+        },
+      });
+
+      await tx.stockMovement.create({
+        data: {
+          variantId: variantFuerte1kg.id,
+          type: "SALIDA",
+          reason: "VENTA",
+          quantity: qty,
+          orderId: order.id,
+        },
+      });
+      await tx.productVariant.update({
+        where: { id: variantFuerte1kg.id },
         data: { currentStock: { decrement: qty } },
       });
     });

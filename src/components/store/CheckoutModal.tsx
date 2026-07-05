@@ -5,12 +5,6 @@ import { MessageCircle, PartyPopper } from "lucide-react";
 import { Modal } from "@/components/ui/Modal";
 import { ApiClientError } from "@/lib/api-client";
 
-const PAYMENT_METHODS = [
-  { value: "EFECTIVO", label: "Efectivo" },
-  { value: "TRANSFERENCIA", label: "Transferencia" },
-  { value: "TARJETA", label: "Tarjeta" },
-];
-
 export type CheckoutResult = { whatsappLink: string | null };
 
 export function CheckoutModal({
@@ -22,14 +16,14 @@ export function CheckoutModal({
   onClose: () => void;
   onConfirm: (data: {
     customerName: string;
-    customerPhone: string;
-    paymentMethod: string;
+    customerWhatsapp: string;
+    customerAddress: string;
     notes: string;
   }) => Promise<CheckoutResult>;
 }) {
   const [customerName, setCustomerName] = useState("");
-  const [customerPhone, setCustomerPhone] = useState("");
-  const [paymentMethod, setPaymentMethod] = useState("EFECTIVO");
+  const [customerWhatsapp, setCustomerWhatsapp] = useState("");
+  const [customerAddress, setCustomerAddress] = useState("");
   const [notes, setNotes] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
@@ -37,8 +31,8 @@ export function CheckoutModal({
 
   function reset() {
     setCustomerName("");
-    setCustomerPhone("");
-    setPaymentMethod("EFECTIVO");
+    setCustomerWhatsapp("");
+    setCustomerAddress("");
     setNotes("");
     setError(null);
     setResult(null);
@@ -54,7 +48,7 @@ export function CheckoutModal({
     setSaving(true);
     setError(null);
     try {
-      const res = await onConfirm({ customerName, customerPhone, paymentMethod, notes });
+      const res = await onConfirm({ customerName, customerWhatsapp, customerAddress, notes });
       setResult(res);
     } catch (err) {
       setError(err instanceof ApiClientError ? err.message : "No se pudo confirmar el pedido");
@@ -105,18 +99,24 @@ export function CheckoutModal({
           <input className="input" value={customerName} onChange={(e) => setCustomerName(e.target.value)} required />
         </div>
         <div>
-          <label className="label">Tu teléfono (opcional)</label>
-          <input className="input" value={customerPhone} onChange={(e) => setCustomerPhone(e.target.value)} />
+          <label className="label">Tu WhatsApp</label>
+          <input
+            className="input"
+            value={customerWhatsapp}
+            onChange={(e) => setCustomerWhatsapp(e.target.value)}
+            placeholder="Ej: 5493751123456"
+            required
+          />
         </div>
         <div>
-          <label className="label">Método de pago preferido</label>
-          <select className="input" value={paymentMethod} onChange={(e) => setPaymentMethod(e.target.value)}>
-            {PAYMENT_METHODS.map((p) => (
-              <option key={p.value} value={p.value}>
-                {p.label}
-              </option>
-            ))}
-          </select>
+          <label className="label">Dirección de envío</label>
+          <input
+            className="input"
+            value={customerAddress}
+            onChange={(e) => setCustomerAddress(e.target.value)}
+            placeholder="Calle, número, localidad"
+            required
+          />
         </div>
         <div>
           <label className="label">Notas para el pedido (opcional)</label>
@@ -126,7 +126,8 @@ export function CheckoutModal({
         {error && <p className="text-sm text-red-600 dark:text-red-400">{error}</p>}
 
         <p className="text-xs text-gray-400">
-          Al confirmar, se reserva el stock de tu pedido y te mostramos un botón para enviarlo por WhatsApp.
+          Al confirmar, se reserva el stock de tu pedido y te mostramos un botón para enviarlo por WhatsApp y
+          coordinar el pago y el envío.
         </p>
 
         <div className="flex justify-end gap-2 pt-2">

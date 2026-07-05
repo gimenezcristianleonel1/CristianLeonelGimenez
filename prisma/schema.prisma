@@ -109,8 +109,6 @@ model ProductVariant {
   minStockOverride Float?
   currentStock     Float    @default(0)
   isActive         Boolean  @default(true)
-  isOnOffer        Boolean  @default(false)
-  offerPrice       Float?
   isPublished      Boolean  @default(true) // visible en la tienda pública
   createdAt        DateTime @default(now())
   updatedAt        DateTime @updatedAt
@@ -120,6 +118,8 @@ model ProductVariant {
   stockMovements   StockMovement[]
   saleItems        SaleItem[]
   batchCosts       ProductionBatchCost[]
+  benefits         Benefit[]
+  orderItems       OrderItem[]
 
   @@index([productId])
   @@map("product_variants")
@@ -178,6 +178,7 @@ model StockMovement {
   lot         String?
   supplierId  Int?
   saleId      Int?
+  orderId     Int?
   notes       String?
   date        DateTime       @default(now())
   createdAt   DateTime       @default(now())
@@ -185,6 +186,7 @@ model StockMovement {
   variant     ProductVariant @relation(fields: [variantId], references: [id])
   supplier    Supplier?      @relation(fields: [supplierId], references: [id])
   sale        Sale?          @relation(fields: [saleId], references: [id])
+  order       Order?         @relation(fields: [orderId], references: [id])
 
   @@index([variantId])
   @@index([date])
@@ -309,4 +311,101 @@ model CashMovement {
 
   @@index([cashSessionId])
   @@map("cash_movements")
+}
+
+// ---------------------------------------------------------------------------
+// Beneficios (ofertas temporales con vigencia por fecha)
+// ---------------------------------------------------------------------------
+
+enum BenefitType {
+  PERCENTAGE // value = porcentaje de descuento (0-100) sobre el precio vigente
+  FIXED_PRICE // value = precio final fijo, reemplaza al precio vigente
+}
+
+// Un beneficio (oferta temporal) aplicado a una variante, válido solo entre
+// startDate y endDate. Reemplaza al viejo esquema fijo isOnOffer/offerPrice
+// para poder programar ofertas con vigencia (ej. "Semana de la Yerba").
+model Benefit {
+  id        Int         @id @default(autoincrement())
+  variantId Int
+  type      BenefitType
+  value     Float
+  startDate DateTime
+  endDate   DateTime
+  createdAt DateTime    @default(now())
+
+  variant   ProductVariant @relation(fields: [variantId], references: [id], onDelete: Cascade)
+
+  @@index([variantId])
+  @@index([startDate, endDate])
+  @@map("benefits")
+}
+
+// ---------------------------------------------------------------------------
+// Clientes y pedidos de la tienda pública (canal online / P2P)
+// ---------------------------------------------------------------------------
+
+// Cliente identificado por su WhatsApp: se crea o reutiliza automáticamente
+// al confirmar un pedido desde la tienda pública.
+model Customer {
+  id        Int      @id @default(autoincrement())
+  name      String
+  whatsapp  String   @unique
+  address   String?
+  createdAt DateTime @default(now())
+
+  orders    Order[]
+
+  @@map("customers")
+}
+
+enum PaymentStatus {
+  PENDIENTE
+  PAGADO
+  REEMBOLSADO
+}
+
+enum ShippingStatus {
+  PREPARANDO
+  DESPACHADO
+  ENTREGADO
+  CANCELADO
+}
+
+// Pedido generado desde la tienda pública (canal online), distinto de `Sale`
+// (venta presencial por caja). Comparte el mismo stock de `ProductVariant`.
+model Order {
+  id              Int            @id @default(autoincrement())
+  customerId      Int
+  total           Float
+  shippingAddress String?
+  paymentStatus   PaymentStatus  @default(PENDIENTE)
+  shippingStatus  ShippingStatus @default(PREPARANDO)
+  notes           String?
+  createdAt       DateTime       @default(now())
+  updatedAt       DateTime       @updatedAt
+
+  customer        Customer        @relation(fields: [customerId], references: [id])
+  items           OrderItem[]
+  stockMovements  StockMovement[]
+
+  @@index([customerId])
+  @@index([createdAt])
+  @@map("orders")
+}
+
+model OrderItem {
+  id              Int            @id @default(autoincrement())
+  orderId         Int
+  variantId       Int
+  quantity        Float
+  priceAtPurchase Float
+  subtotal        Float
+
+  order           Order          @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  variant         ProductVariant @relation(fields: [variantId], references: [id])
+
+  @@index([orderId])
+  @@index([variantId])
+  @@map("order_items")
 }

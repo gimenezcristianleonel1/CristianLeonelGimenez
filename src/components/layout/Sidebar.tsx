@@ -12,6 +12,7 @@ import {
   Wallet,
   Settings,
   Leaf,
+  Users,
 } from "lucide-react";
 import { useLabel } from "@/components/providers/AppConfigProvider";
 
@@ -26,6 +27,7 @@ export function Sidebar({ onNavigate }: { onNavigate?: () => void }) {
     { href: "/admin/finanzas", label: "Finanzas", icon: Landmark },
     { href: "/admin/ventas", label: "Ventas", icon: ShoppingCart },
     { href: "/admin/caja", label: "Caja", icon: Wallet },
+    { href: "/admin/clientes", label: "Clientes", icon: Users },
     { href: "/admin/configuracion", label: "Configuración", icon: Settings },
   ];
 

@@ -35,8 +35,6 @@ export const variantSchema = z.object({
   priceOverride: z.number().min(0).optional().nullable(),
   minStockOverride: z.number().min(0).optional().nullable(),
   isActive: z.boolean().default(true),
-  isOnOffer: z.boolean().default(false),
-  offerPrice: z.number().min(0).optional().nullable(),
   isPublished: z.boolean().default(true),
   attributeValueIds: z.array(z.number().int().positive()).optional().default([]),
 });
@@ -138,4 +136,47 @@ export const fieldLabelSchema = z.object({
 export const settingSchema = z.object({
   key: z.string().min(1),
   value: z.string(),
+});
+
+export const benefitTypeEnum = z.enum(["PERCENTAGE", "FIXED_PRICE"]);
+
+export const benefitSchema = z
+  .object({
+    variantId: z.number().int().positive(),
+    type: benefitTypeEnum,
+    value: z.number().positive("El valor debe ser mayor a 0"),
+    startDate: z.coerce.date(),
+    endDate: z.coerce.date(),
+  })
+  .refine((data) => data.endDate >= data.startDate, {
+    message: "La fecha de fin debe ser posterior (o igual) a la fecha de inicio",
+    path: ["endDate"],
+  })
+  .refine((data) => data.type !== "PERCENTAGE" || data.value <= 100, {
+    message: "Un descuento porcentual no puede superar el 100%",
+    path: ["value"],
+  });
+
+export const publicOrderItemSchema = z.object({
+  variantId: z.number().int().positive(),
+  quantity: z.number().positive("La cantidad debe ser mayor a 0"),
+});
+
+export const publicOrderSchema = z.object({
+  items: z.array(publicOrderItemSchema).min(1, "El pedido debe tener al menos un ítem"),
+  customerName: z.string().min(1, "El nombre es obligatorio"),
+  customerWhatsapp: z
+    .string()
+    .min(6, "Ingresá un número de WhatsApp válido")
+    .transform((v) => v.replace(/[^0-9]/g, "")),
+  customerAddress: z.string().min(1, "La dirección de envío es obligatoria"),
+  notes: z.string().optional().nullable(),
+});
+
+export const paymentStatusEnum = z.enum(["PENDIENTE", "PAGADO", "REEMBOLSADO"]);
+export const shippingStatusEnum = z.enum(["PREPARANDO", "DESPACHADO", "ENTREGADO", "CANCELADO"]);
+
+export const orderStatusUpdateSchema = z.object({
+  paymentStatus: paymentStatusEnum.optional(),
+  shippingStatus: shippingStatusEnum.optional(),
 });

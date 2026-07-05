@@ -11,9 +11,8 @@ type Variant = {
   name: string;
   sku: string;
   currentStock: number;
-  priceOverride: number | null;
-  isOnOffer: boolean;
-  offerPrice: number | null;
+  effectivePrice: number;
+  activeBenefit: { id: number } | null;
   isActive: boolean;
   product: { name: string; basePrice: number };
 };
@@ -34,12 +33,6 @@ const PAYMENT_METHODS = [
   { value: "TRANSFERENCIA", label: "Transferencia" },
   { value: "TARJETA", label: "Tarjeta" },
 ];
-
-function effectivePrice(v: Variant): number {
-  const regular = v.priceOverride ?? v.product.basePrice;
-  if (v.isOnOffer && v.offerPrice != null) return Math.min(v.offerPrice, regular);
-  return regular;
-}
 
 export default function VentasPage() {
   const [variants, setVariants] = useState<Variant[]>([]);
@@ -94,7 +87,7 @@ export default function VentasPage() {
           name: `${v.product.name} — ${v.name}`,
           sku: v.sku,
           quantity: 1,
-          unitPrice: effectivePrice(v),
+          unitPrice: v.effectivePrice,
           maxStock: v.currentStock,
         },
       ];
@@ -165,7 +158,7 @@ export default function VentasPage() {
           />
           <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
             {filtered.map((v) => {
-              const price = effectivePrice(v);
+              const price = v.effectivePrice;
               const outOfStock = v.currentStock <= 0;
               return (
                 <button
@@ -180,7 +173,7 @@ export default function VentasPage() {
                     <span className="font-semibold text-brand-700 dark:text-brand-400">
                       {formatCurrency(price, currency)}
                     </span>
-                    {v.isOnOffer && (
+                    {v.activeBenefit && (
                       <span className="rounded-full bg-accent-100 px-1.5 py-0.5 text-[10px] font-medium text-accent-700 dark:bg-accent-900/30 dark:text-accent-400">
                         OFERTA
                       </span>

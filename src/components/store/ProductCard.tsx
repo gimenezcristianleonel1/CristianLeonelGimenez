@@ -28,9 +28,18 @@ export function ProductCard({
 }) {
   const outOfStock = variant.stock <= 0;
   const label = variant.name && variant.name !== productName ? `${productName} — ${variant.name}` : productName;
+  const discountPercent =
+    variant.isOnOffer && variant.regularPrice > 0
+      ? Math.round((1 - variant.price / variant.regularPrice) * 100)
+      : 0;
 
   return (
-    <div className="card flex flex-col overflow-hidden">
+    <div className="card relative flex flex-col overflow-hidden">
+      {variant.isOnOffer && (
+        <span className="absolute left-2 top-2 z-10 rounded-full bg-accent-500 px-2 py-0.5 text-[10px] font-bold text-white shadow">
+          OFERTA TEMPORAL
+        </span>
+      )}
       <div className="flex h-40 items-center justify-center bg-gray-100 dark:bg-gray-800">
         {imageUrl ? (
           // eslint-disable-next-line @next/next/no-img-element
@@ -51,6 +60,11 @@ export function ProductCard({
           <span className="text-lg font-bold text-brand-700 dark:text-brand-400">
             {formatCurrency(variant.price, currency)}
           </span>
+          {discountPercent > 0 && (
+            <span className="rounded bg-accent-100 px-1.5 py-0.5 text-[10px] font-semibold text-accent-700 dark:bg-accent-900/30 dark:text-accent-400">
+              -{discountPercent}%
+            </span>
+          )}
         </div>
         <p className="mt-1 text-xs text-gray-400">
           {outOfStock ? "Sin stock disponible" : `Stock disponible: ${variant.stock}`}

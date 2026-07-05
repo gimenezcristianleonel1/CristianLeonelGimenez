@@ -101,20 +101,20 @@ export default function StorefrontPage() {
 
   async function handleConfirmOrder(data: {
     customerName: string;
-    customerPhone: string;
-    paymentMethod: string;
+    customerWhatsapp: string;
+    customerAddress: string;
     notes: string;
   }) {
     const total = cart.reduce((acc, l) => acc + l.quantity * l.unitPrice, 0);
     await api.post("/api/public/orders", {
       items: cart.map((l) => ({ variantId: l.variantId, quantity: l.quantity })),
-      paymentMethod: data.paymentMethod,
       customerName: data.customerName,
-      customerPhone: data.customerPhone,
+      customerWhatsapp: data.customerWhatsapp,
+      customerAddress: data.customerAddress,
       notes: data.notes,
     });
 
-    const message = buildWhatsAppOrderMessage(cart, total, currency, data.customerName);
+    const message = buildWhatsAppOrderMessage(cart, total, currency, data.customerName, data.customerAddress);
     const whatsappLink = catalog?.whatsappNumber
       ? buildWhatsAppLink(catalog.whatsappNumber, message)
       : null;

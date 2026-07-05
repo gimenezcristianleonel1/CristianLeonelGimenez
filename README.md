@@ -208,18 +208,40 @@ utilidad neta).
 ### 6. Tienda pública + WhatsApp
 
 La página `/` es la tienda pública: lee el catálogo real desde la base de
-datos (`/api/public/catalog`), muestra una sección de ofertas (variantes
-marcadas "en oferta" desde `/admin/productos`) y un carrito de compras que
-valida el stock disponible. Al confirmar el pedido:
+datos (`/api/public/catalog`), muestra una sección de ofertas (variantes con
+un `Benefit` vigente en la fecha de hoy) y un carrito de compras que valida
+el stock disponible. Al confirmar el pedido, la tienda pide nombre, WhatsApp
+y dirección de envío (obligatorios), y entonces:
 
-1. Se crea una venta real en el sistema (`/api/public/orders`) y se descuenta
-   el stock correspondiente — el precio siempre se recalcula en el servidor,
-   nunca se confía en lo que envía el navegador.
-2. Se abre WhatsApp (`wa.me`) con un mensaje prearmado con el detalle del
-   pedido y el total, al número configurado en **Configuración del sistema**
-   (`whatsapp_number`).
+1. Se crea o reutiliza el `Customer` por su WhatsApp (único), se crea el
+   `Order` con sus `OrderItem` (`/api/public/orders`) y se descuenta el stock
+   correspondiente — el precio siempre se recalcula en el servidor a partir
+   del beneficio vigente, nunca se confía en lo que envía el navegador.
+2. Se muestra un botón para enviar el pedido por WhatsApp (`wa.me`) con un
+   mensaje prearmado con el detalle, el total y la dirección de envío, al
+   número configurado en **Configuración del sistema** (`whatsapp_number`).
 
-### 7. Acceso de administrador
+### 7. Beneficios (ofertas temporales) y módulo de clientes
+
+- **Beneficios con vigencia por fecha:** desde `/admin/productos`, cada
+  variante puede tener uno o más `Benefit` (porcentaje de descuento o precio
+  fijo) con `startDate`/`endDate`. Solo se aplica el que esté vigente "ahora"
+  (se recalcula en cada request, tanto en la tienda pública como en el POS).
+- **`/admin/clientes`** tiene dos vistas:
+  - **Pedidos:** tabla global de pedidos online con filtros por estado de
+    pago (Pendiente/Pagado/Reembolsado) y estado de envío
+    (Preparando/Despachado/Entregado/Cancelado), editables con un dropdown
+    por fila.
+  - **Clientes:** listado de clientes; al hacer clic en uno se abre su ficha
+    con datos de contacto (con botón directo a WhatsApp), estadísticas
+    (total gastado, volumen comprado agrupado por unidad de cada producto) y
+    el historial cronológico completo de sus pedidos.
+- Este canal online (`Customer`/`Order`/`OrderItem`) es independiente del
+  punto de venta presencial (`Sale`/`SaleItem`/`CashSession`, sección
+  `/admin/ventas` y `/admin/caja`); ambos descuentan el mismo stock real de
+  `ProductVariant`.
+
+### 8. Acceso de administrador
 
 El panel `/admin` está protegido por una única contraseña (`ADMIN_PASSWORD`).
 Al iniciar sesión se genera una cookie firmada (HMAC-SHA256) con expiración

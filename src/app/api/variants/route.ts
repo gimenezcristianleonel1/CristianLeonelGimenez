@@ -2,6 +2,7 @@ import { NextRequest } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { variantSchema } from "@/lib/validations";
 import { errorResponse, jsonOk, AppError } from "@/lib/api-utils";
+import { effectivePrice, effectiveSalePrice, getActiveBenefitsMap } from "@/lib/stock";
 
 export async function GET(request: NextRequest) {
   try {
@@ -14,7 +15,19 @@ export async function GET(request: NextRequest) {
         attributeValues: { include: { attributeValue: { include: { attribute: true } } } },
       },
     });
-    return jsonOk(variants);
+
+    const benefitsMap = await getActiveBenefitsMap(variants.map((v) => v.id));
+    const withPricing = variants.map((v) => {
+      const benefit = benefitsMap.get(v.id);
+      return {
+        ...v,
+        regularPrice: effectivePrice(v, v.product),
+        effectivePrice: effectiveSalePrice(v, v.product, benefit),
+        activeBenefit: benefit ?? null,
+      };
+    });
+
+    return jsonOk(withPricing);
   } catch (error) {
     return errorResponse(error);
   }
@@ -41,8 +54,6 @@ export async function POST(request: NextRequest) {
         priceOverride: data.priceOverride ?? null,
         minStockOverride: data.minStockOverride ?? null,
         isActive: data.isActive,
-        isOnOffer: data.isOnOffer,
-        offerPrice: data.offerPrice ?? null,
         isPublished: data.isPublished,
         attributeValues: {
           create: data.attributeValueIds.map((attributeValueId) => ({ attributeValueId })),

@@ -18,7 +18,10 @@ export async function GET(request: NextRequest) {
         category: true,
         variants: {
           where: includeInactive ? undefined : { isActive: true },
-          include: { attributeValues: { include: { attributeValue: { include: { attribute: true } } } } },
+          include: {
+            attributeValues: { include: { attributeValue: { include: { attribute: true } } } },
+            benefits: { orderBy: { startDate: "desc" } },
+          },
         },
       },
     });

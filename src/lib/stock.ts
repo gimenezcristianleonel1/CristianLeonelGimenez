@@ -1,4 +1,4 @@
-import { Prisma } from "@prisma/client";
+import { BenefitType, Prisma } from "@prisma/client";
 import { prisma } from "./prisma";
 import { AppError } from "./api-utils";
 import { MovementReason, MovementType, PaymentMethod } from "./enums";
@@ -228,16 +228,42 @@ export function effectivePrice(variant: { priceOverride: number | null }, produc
   return variant.priceOverride ?? product.basePrice;
 }
 
-/** Precio final a cobrar: si la variante está en oferta y tiene precio de oferta, ese manda. */
-export function effectiveSalePrice(
-  variant: { priceOverride: number | null; isOnOffer: boolean; offerPrice: number | null },
-  product: { basePrice: number }
-) {
-  const regular = effectivePrice(variant, product);
-  if (variant.isOnOffer && variant.offerPrice != null) {
-    return Math.min(variant.offerPrice, regular);
+export type ActiveBenefit = { id: number; type: BenefitType; value: number; startDate: Date; endDate: Date };
+
+/** Trae, para un conjunto de variantes, el beneficio vigente "ahora" (si existe alguno). */
+export async function getActiveBenefitsMap(
+  variantIds: number[],
+  now: Date = new Date()
+): Promise<Map<number, ActiveBenefit>> {
+  if (variantIds.length === 0) return new Map();
+  const benefits = await prisma.benefit.findMany({
+    where: { variantId: { in: variantIds }, startDate: { lte: now }, endDate: { gte: now } },
+    orderBy: { startDate: "desc" },
+  });
+  const map = new Map<number, ActiveBenefit>();
+  for (const b of benefits) {
+    if (!map.has(b.variantId)) map.set(b.variantId, b);
   }
-  return regular;
+  return map;
+}
+
+/** Aplica un beneficio (si hay uno vigente) sobre el precio regular. */
+export function applyBenefit(regularPrice: number, benefit?: ActiveBenefit | null): number {
+  if (!benefit) return regularPrice;
+  if (benefit.type === "PERCENTAGE") {
+    return Math.max(regularPrice * (1 - benefit.value / 100), 0);
+  }
+  // FIXED_PRICE: nunca debería quedar por encima del precio regular.
+  return Math.min(benefit.value, regularPrice);
+}
+
+/** Precio final a cobrar: precio regular con el beneficio vigente (si lo hay) aplicado. */
+export function effectiveSalePrice(
+  variant: { priceOverride: number | null },
+  product: { basePrice: number },
+  benefit?: ActiveBenefit | null
+) {
+  return applyBenefit(effectivePrice(variant, product), benefit);
 }
 
 export function effectiveMinStock(
@@ -263,11 +289,12 @@ export async function computeMarginsForAllVariants(): Promise<MarginInfo[]> {
     where: { isActive: true },
     include: { product: true },
   });
+  const benefitsMap = await getActiveBenefitsMap(variants.map((v) => v.id));
 
   const results: MarginInfo[] = [];
   for (const variant of variants) {
     const averageCost = await weightedAverageCost(variant.id);
-    const salePrice = effectiveSalePrice(variant, variant.product);
+    const salePrice = effectiveSalePrice(variant, variant.product, benefitsMap.get(variant.id));
     const marginAbsolute = salePrice - averageCost;
     const marginPercent = salePrice > 0 ? (marginAbsolute / salePrice) * 100 : 0;
     results.push({
@@ -284,50 +311,3 @@ export async function computeMarginsForAllVariants(): Promise<MarginInfo[]> {
   return results;
 }
 
-type PublicOrderItemInput = { variantId: number; quantity: number };
-
-type PublicOrderInput = {
-  items: PublicOrderItemInput[];
-  paymentMethod: PaymentMethod;
-  customerName?: string;
-  customerPhone?: string;
-  notes?: string;
-};
-
-/**
- * Registra un pedido generado desde la tienda pública: el precio de cada
- * ítem se resuelve siempre en el servidor (a partir del precio vigente,
- * respetando ofertas activas) para que el cliente nunca pueda manipular
- * precios desde el navegador. Solo admite variantes activas y publicadas.
- */
-export async function registerPublicOrder(input: PublicOrderInput) {
-  const variantIds = input.items.map((i) => i.variantId);
-  const variants = await prisma.productVariant.findMany({
-    where: { id: { in: variantIds }, isActive: true, isPublished: true },
-    include: { product: true },
-  });
-  const variantMap = new Map(variants.map((v) => [v.id, v]));
-
-  const resolvedItems = input.items.map((item) => {
-    const variant = variantMap.get(item.variantId);
-    if (!variant) {
-      throw new AppError(`Uno de los productos del pedido ya no está disponible`, 404);
-    }
-    return {
-      variantId: item.variantId,
-      quantity: item.quantity,
-      unitPrice: effectiveSalePrice(variant, variant.product),
-    };
-  });
-
-  const customerInfo = [input.customerName, input.customerPhone].filter(Boolean).join(" · ");
-  const notes = ["Pedido generado desde la tienda pública", customerInfo, input.notes]
-    .filter(Boolean)
-    .join(" | ");
-
-  return registerSale({
-    items: resolvedItems,
-    paymentMethod: input.paymentMethod,
-    notes,
-  });
-}

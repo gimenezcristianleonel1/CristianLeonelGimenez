@@ -1,15 +1,17 @@
 "use client";
 
 import { useEffect, useState, useCallback } from "react";
-import { Plus, ChevronDown, ChevronRight, Pencil, Tag, Percent } from "lucide-react";
+import { Plus, ChevronDown, ChevronRight, Pencil, Tag, Percent, Trash2 } from "lucide-react";
 import { api, ApiClientError } from "@/lib/api-client";
 import { useLabel, useCurrency } from "@/components/providers/AppConfigProvider";
-import { formatCurrency, formatNumber } from "@/lib/format";
+import { formatCurrency, formatDate, formatNumber } from "@/lib/format";
 import { Modal } from "@/components/ui/Modal";
 
 type Category = { id: number; name: string; description: string | null };
 type AttributeValue = { id: number; value: string; attributeId: number };
 type Attribute = { id: number; name: string; values: AttributeValue[] };
+type BenefitType = "PERCENTAGE" | "FIXED_PRICE";
+type Benefit = { id: number; type: BenefitType; value: number; startDate: string; endDate: string };
 type Variant = {
   id: number;
   productId: number;
@@ -19,10 +21,9 @@ type Variant = {
   minStockOverride: number | null;
   currentStock: number;
   isActive: boolean;
-  isOnOffer: boolean;
-  offerPrice: number | null;
   isPublished: boolean;
   attributeValues: { attributeValue: AttributeValue & { attribute: { name: string } } }[];
+  benefits: Benefit[];
 };
 type Product = {
   id: number;
@@ -38,6 +39,18 @@ type Product = {
   isActive: boolean;
   variants: Variant[];
 };
+
+function activeBenefit(benefits: Benefit[], now = new Date()): Benefit | null {
+  return (
+    benefits.find((b) => new Date(b.startDate) <= now && now <= new Date(b.endDate)) ?? null
+  );
+}
+
+function priceWithBenefit(regularPrice: number, benefit: Benefit | null): number {
+  if (!benefit) return regularPrice;
+  if (benefit.type === "PERCENTAGE") return Math.max(regularPrice * (1 - benefit.value / 100), 0);
+  return Math.min(benefit.value, regularPrice);
+}
 
 export default function ProductosPage() {
   const [products, setProducts] = useState<Product[]>([]);
@@ -156,6 +169,7 @@ export default function ProductosPage() {
         productId={variantModal.productId}
         variant={variantModal.variant}
         attributes={attributes}
+        currency={currency}
         onClose={() => setVariantModal({ open: false, productId: null, variant: null })}
         onSaved={loadAll}
       />
@@ -233,52 +247,57 @@ function ProductRow({
                 </tr>
               </thead>
               <tbody>
-                {product.variants.map((v) => (
-                  <tr key={v.id} className="border-t border-gray-100 dark:border-gray-800">
-                    <td className="py-2">
-                      <p className={!v.isActive ? "text-gray-400 line-through" : ""}>{v.name}</p>
-                      {v.attributeValues.length > 0 && (
-                        <p className="text-xs text-gray-400">
-                          {v.attributeValues.map((av) => av.attributeValue.value).join(" · ")}
-                        </p>
-                      )}
-                    </td>
-                    <td className="py-2 text-gray-500">{v.sku}</td>
-                    <td className="py-2 text-right">{formatNumber(v.currentStock)}</td>
-                    <td className="py-2 text-right">
-                      {v.isOnOffer && v.offerPrice != null ? (
-                        <span>
-                          <span className="mr-1 text-xs text-gray-400 line-through">
-                            {formatCurrency(v.priceOverride ?? product.basePrice, currency)}
+                {product.variants.map((v) => {
+                  const benefit = activeBenefit(v.benefits);
+                  const regular = v.priceOverride ?? product.basePrice;
+                  const finalPrice = priceWithBenefit(regular, benefit);
+                  return (
+                    <tr key={v.id} className="border-t border-gray-100 dark:border-gray-800">
+                      <td className="py-2">
+                        <p className={!v.isActive ? "text-gray-400 line-through" : ""}>{v.name}</p>
+                        {v.attributeValues.length > 0 && (
+                          <p className="text-xs text-gray-400">
+                            {v.attributeValues.map((av) => av.attributeValue.value).join(" · ")}
+                          </p>
+                        )}
+                      </td>
+                      <td className="py-2 text-gray-500">{v.sku}</td>
+                      <td className="py-2 text-right">{formatNumber(v.currentStock)}</td>
+                      <td className="py-2 text-right">
+                        {benefit ? (
+                          <span>
+                            <span className="mr-1 text-xs text-gray-400 line-through">
+                              {formatCurrency(regular, currency)}
+                            </span>
+                            <span className="font-medium text-emerald-600 dark:text-emerald-400">
+                              {formatCurrency(finalPrice, currency)}
+                            </span>
                           </span>
-                          <span className="font-medium text-emerald-600 dark:text-emerald-400">
-                            {formatCurrency(v.offerPrice, currency)}
-                          </span>
-                        </span>
-                      ) : (
-                        formatCurrency(v.priceOverride ?? product.basePrice, currency)
-                      )}
-                    </td>
-                    <td className="py-2 text-center">
-                      {v.isOnOffer && <Percent size={14} className="mx-auto text-accent-500" />}
-                    </td>
-                    <td className="py-2 text-center">
-                      {v.isPublished ? (
-                        <span className="text-emerald-600 dark:text-emerald-400">Sí</span>
-                      ) : (
-                        <span className="text-gray-400">No</span>
-                      )}
-                    </td>
-                    <td className="py-2 text-right">
-                      <button
-                        onClick={() => onEditVariant(v)}
-                        className="rounded-lg p-1.5 text-gray-500 hover:bg-gray-100 dark:hover:bg-gray-800"
-                      >
-                        <Pencil size={14} />
-                      </button>
-                    </td>
-                  </tr>
-                ))}
+                        ) : (
+                          formatCurrency(regular, currency)
+                        )}
+                      </td>
+                      <td className="py-2 text-center">
+                        {benefit && <Percent size={14} className="mx-auto text-accent-500" />}
+                      </td>
+                      <td className="py-2 text-center">
+                        {v.isPublished ? (
+                          <span className="text-emerald-600 dark:text-emerald-400">Sí</span>
+                        ) : (
+                          <span className="text-gray-400">No</span>
+                        )}
+                      </td>
+                      <td className="py-2 text-right">
+                        <button
+                          onClick={() => onEditVariant(v)}
+                          className="rounded-lg p-1.5 text-gray-500 hover:bg-gray-100 dark:hover:bg-gray-800"
+                        >
+                          <Pencil size={14} />
+                        </button>
+                      </td>
+                    </tr>
+                  );
+                })}
               </tbody>
             </table>
           </td>
@@ -470,6 +489,7 @@ function VariantModal({
   productId,
   variant,
   attributes,
+  currency,
   onClose,
   onSaved,
 }: {
@@ -477,6 +497,7 @@ function VariantModal({
   productId: number | null;
   variant: Variant | null;
   attributes: Attribute[];
+  currency: string;
   onClose: () => void;
   onSaved: () => void;
 }) {
@@ -515,8 +536,6 @@ function VariantModal({
         priceOverride: form.priceOverride ? Number(form.priceOverride) : null,
         minStockOverride: form.minStockOverride ? Number(form.minStockOverride) : null,
         isActive: form.isActive,
-        isOnOffer: form.isOnOffer,
-        offerPrice: form.offerPrice ? Number(form.offerPrice) : null,
         isPublished: form.isPublished,
         attributeValueIds: Array.from(selectedValues),
       };
@@ -609,26 +628,17 @@ function VariantModal({
           </div>
         )}
 
-        <div className="rounded-lg border border-accent-200 bg-accent-50 p-3 dark:border-accent-900/50 dark:bg-accent-900/10">
-          <label className="mb-2 flex items-center gap-2 text-sm font-medium">
-            <input
-              type="checkbox"
-              checked={form.isOnOffer}
-              onChange={(e) => setForm({ ...form, isOnOffer: e.target.checked })}
-            />
-            En oferta (se muestra destacado en la tienda pública)
-          </label>
-          {form.isOnOffer && (
-            <input
-              type="number"
-              step="any"
-              className="input"
-              placeholder="Precio de oferta"
-              value={form.offerPrice}
-              onChange={(e) => setForm({ ...form, offerPrice: e.target.value })}
-            />
-          )}
-        </div>
+        {variant ? (
+          <BenefitsManager
+            variantId={variant.id}
+            regularPrice={form.priceOverride ? Number(form.priceOverride) : null}
+            currency={currency}
+          />
+        ) : (
+          <p className="rounded-lg border border-dashed border-gray-300 p-3 text-xs text-gray-400 dark:border-gray-700">
+            Guardá la variante primero para poder agregar beneficios (ofertas temporales con fecha).
+          </p>
+        )}
 
         <div className="flex gap-4">
           <label className="flex items-center gap-2 text-sm">
@@ -671,10 +681,145 @@ function emptyVariantForm(variant: Variant | null) {
     priceOverride: variant?.priceOverride != null ? String(variant.priceOverride) : "",
     minStockOverride: variant?.minStockOverride != null ? String(variant.minStockOverride) : "",
     isActive: variant?.isActive ?? true,
-    isOnOffer: variant?.isOnOffer ?? false,
-    offerPrice: variant?.offerPrice != null ? String(variant.offerPrice) : "",
     isPublished: variant?.isPublished ?? true,
   };
+}
+
+function BenefitsManager({
+  variantId,
+  regularPrice,
+  currency,
+}: {
+  variantId: number;
+  regularPrice: number | null;
+  currency: string;
+}) {
+  const [benefits, setBenefits] = useState<Benefit[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [type, setType] = useState<BenefitType>("PERCENTAGE");
+  const [value, setValue] = useState("");
+  const [startDate, setStartDate] = useState("");
+  const [endDate, setEndDate] = useState("");
+  const [error, setError] = useState<string | null>(null);
+  const [saving, setSaving] = useState(false);
+
+  const load = useCallback(async () => {
+    setLoading(true);
+    const data = await api.get<Benefit[]>(`/api/benefits?variantId=${variantId}`);
+    setBenefits(data);
+    setLoading(false);
+  }, [variantId]);
+
+  useEffect(() => {
+    load();
+  }, [load]);
+
+  async function handleAdd(e: React.FormEvent) {
+    e.preventDefault();
+    setSaving(true);
+    setError(null);
+    try {
+      await api.post("/api/benefits", {
+        variantId,
+        type,
+        value: Number(value),
+        startDate,
+        endDate,
+      });
+      setValue("");
+      setStartDate("");
+      setEndDate("");
+      load();
+    } catch (err) {
+      setError(err instanceof ApiClientError ? err.message : "Error al crear el beneficio");
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  async function handleDelete(id: number) {
+    await api.delete(`/api/benefits/${id}`);
+    load();
+  }
+
+  const now = new Date();
+
+  return (
+    <div className="rounded-lg border border-accent-200 bg-accent-50 p-3 dark:border-accent-900/50 dark:bg-accent-900/10">
+      <p className="mb-2 flex items-center gap-2 text-sm font-medium">
+        <Percent size={14} /> Beneficios / ofertas temporales
+      </p>
+
+      {!loading && benefits.length > 0 && (
+        <ul className="mb-3 space-y-1">
+          {benefits.map((b) => {
+            const isActive = new Date(b.startDate) <= now && now <= new Date(b.endDate);
+            const preview = regularPrice != null ? priceWithBenefit(regularPrice, b) : null;
+            return (
+              <li
+                key={b.id}
+                className="flex items-center justify-between gap-2 rounded bg-white/70 px-2 py-1.5 text-xs dark:bg-gray-900/40"
+              >
+                <span>
+                  {b.type === "PERCENTAGE" ? `${b.value}% off` : `Precio fijo ${formatCurrency(b.value, currency)}`}
+                  {preview != null && (
+                    <span className="text-gray-400"> → {formatCurrency(preview, currency)}</span>
+                  )}
+                  <br />
+                  <span className="text-gray-400">
+                    {formatDate(b.startDate)} – {formatDate(b.endDate)}
+                  </span>
+                  {isActive && (
+                    <span className="ml-1 font-semibold text-emerald-600 dark:text-emerald-400">Vigente</span>
+                  )}
+                </span>
+                <button
+                  type="button"
+                  onClick={() => handleDelete(b.id)}
+                  className="shrink-0 rounded p-1 text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20"
+                >
+                  <Trash2 size={13} />
+                </button>
+              </li>
+            );
+          })}
+        </ul>
+      )}
+
+      <div className="grid grid-cols-2 gap-2">
+        <select className="input" value={type} onChange={(e) => setType(e.target.value as BenefitType)}>
+          <option value="PERCENTAGE">% de descuento</option>
+          <option value="FIXED_PRICE">Precio fijo</option>
+        </select>
+        <input
+          type="number"
+          step="any"
+          min="0"
+          className="input"
+          placeholder={type === "PERCENTAGE" ? "% ej. 15" : "Precio final"}
+          value={value}
+          onChange={(e) => setValue(e.target.value)}
+        />
+        <div>
+          <label className="mb-1 block text-xs text-gray-500">Desde</label>
+          <input type="date" className="input" value={startDate} onChange={(e) => setStartDate(e.target.value)} />
+        </div>
+        <div>
+          <label className="mb-1 block text-xs text-gray-500">Hasta</label>
+          <input type="date" className="input" value={endDate} onChange={(e) => setEndDate(e.target.value)} />
+        </div>
+      </div>
+      <button
+        type="button"
+        onClick={handleAdd}
+        className="btn-secondary mt-2 w-full"
+        disabled={saving || !value || !startDate || !endDate}
+      >
+        <Plus size={14} /> {saving ? "Agregando..." : "Agregar beneficio"}
+      </button>
+      {error && <p className="mt-2 text-xs text-red-600 dark:text-red-400">{error}</p>}
+    </div>
+  );
 }
 
 function CategoryModal({ open, onClose, onSaved }: { open: boolean; onClose: () => void; onSaved: () => void }) {

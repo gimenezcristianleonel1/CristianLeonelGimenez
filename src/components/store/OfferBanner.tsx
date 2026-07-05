@@ -33,7 +33,9 @@ export function OfferBanner({
             onClick={() => onAdd(offer.variantId)}
             className="flex min-w-[220px] flex-shrink-0 flex-col items-start gap-1 rounded-xl border border-accent-300 bg-gradient-to-br from-accent-50 to-white p-4 text-left shadow-sm transition hover:shadow-md dark:border-accent-900/50 dark:from-accent-900/10 dark:to-gray-900"
           >
-            <span className="rounded-full bg-accent-500 px-2 py-0.5 text-[10px] font-bold text-white">OFERTA</span>
+            <span className="rounded-full bg-accent-500 px-2 py-0.5 text-[10px] font-bold text-white">
+              OFERTA TEMPORAL
+            </span>
             <p className="mt-1 font-semibold">{offer.productName}</p>
             <p className="text-xs text-gray-500 dark:text-gray-400">{offer.variantName}</p>
             <div className="mt-1 flex items-baseline gap-2">
