@@ -1,7 +1,9 @@
 // Helpers genéricos de token de sesión firmado (HMAC-SHA256 + Web Crypto),
 // usados tanto por la sesión de administrador como por la de clientes.
-// Implementado con Web Crypto para funcionar en rutas API (Node) y en
-// middleware (Edge runtime) sin depender de Buffer.
+// Implementado con Web Crypto (globalThis.crypto) para funcionar tanto en
+// rutas API (Node) como en middleware (Edge runtime) sin depender de Buffer.
+// Edge Runtime prohíbe eval/Function dinámico, así que no puede haber ningún
+// fallback a require("crypto") en este archivo: siempre usamos el global.
 
 function toBase64Url(bytes: Uint8Array): string {
   let binary = "";

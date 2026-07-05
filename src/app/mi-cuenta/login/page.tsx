@@ -86,11 +86,15 @@ export default function CustomerLoginPage() {
           </p>
         </form>
 
-        <p className="mt-6 text-center text-sm">
+        <div className="mt-6 flex items-center justify-center gap-4 text-sm">
           <Link href="/" className="text-gray-500 hover:underline dark:text-gray-400">
             ← Volver a la tienda
           </Link>
-        </p>
+          <span className="text-gray-300 dark:text-gray-700">|</span>
+          <Link href="/admin/login" className="text-gray-500 hover:underline dark:text-gray-400">
+            Ingreso administrador
+          </Link>
+        </div>
       </div>
     </div>
   );

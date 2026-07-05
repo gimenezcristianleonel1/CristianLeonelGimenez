@@ -6,6 +6,10 @@
 
 generator client {
   provider = "prisma-client-js"
+  // "rhel-openssl-3.0.x": el runtime de Funciones de Netlify (AWS Lambda,
+  // Amazon Linux 2023) no es el mismo binario que "native" (el de la build),
+  // así que sin este target el motor de consultas puede no cargar en runtime.
+  binaryTargets = ["native", "rhel-openssl-3.0.x"]
 }
 
 datasource db {

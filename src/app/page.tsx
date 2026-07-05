@@ -150,7 +150,7 @@ export default function StorefrontPage() {
               className="flex items-center gap-2 rounded-lg border border-brand-600 bg-brand-600 px-3 py-2 text-sm font-semibold text-white shadow-sm transition hover:bg-brand-700"
             >
               <UserCircle size={18} />
-              {customer ? `Hola, ${customer.name.split(" ")[0]}` : "Mi cuenta"}
+              {customer ? `Hola, ${customer.name.split(" ")[0]}` : "Usuario"}
             </Link>
             <button
               className="rounded-lg p-2 text-gray-600 hover:bg-gray-100 dark:text-gray-300 dark:hover:bg-gray-800"
@@ -204,9 +204,12 @@ export default function StorefrontPage() {
         </section>
       </main>
 
-      <footer className="border-t border-gray-200 py-4 text-center text-xs text-gray-400 dark:border-gray-800">
-        <Link href="/admin" className="hover:underline">
-          Acceso administrador
+      <footer className="border-t border-gray-200 py-4 text-center text-sm dark:border-gray-800">
+        <Link
+          href="/admin"
+          className="font-medium text-gray-500 hover:text-brand-700 hover:underline dark:text-gray-400 dark:hover:text-brand-400"
+        >
+          Ingresar como administrador
         </Link>
       </footer>
 
