@@ -2,8 +2,9 @@
 
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
-import { ShoppingCart, Moon, Sun, Leaf } from "lucide-react";
+import { ShoppingCart, Moon, Sun, Leaf, UserCircle } from "lucide-react";
 import { useTheme } from "@/components/providers/ThemeProvider";
+import { useCustomerAuth } from "@/components/providers/CustomerAuthProvider";
 import { api } from "@/lib/api-client";
 import { OfferBanner, OfferItem } from "@/components/store/OfferBanner";
 import { ProductCard, StoreVariant } from "@/components/store/ProductCard";
@@ -35,6 +36,7 @@ export default function StorefrontPage() {
   const [cartOpen, setCartOpen] = useState(false);
   const [checkoutOpen, setCheckoutOpen] = useState(false);
   const { theme, toggle } = useTheme();
+  const { customer } = useCustomerAuth();
 
   useEffect(() => {
     api.get<Catalog>("/api/public/catalog").then(setCatalog);
@@ -143,6 +145,13 @@ export default function StorefrontPage() {
             </div>
           </div>
           <div className="flex items-center gap-2">
+            <Link
+              href={customer ? "/mi-cuenta" : "/mi-cuenta/login"}
+              className="flex items-center gap-2 rounded-lg border border-brand-600 bg-brand-600 px-3 py-2 text-sm font-semibold text-white shadow-sm transition hover:bg-brand-700"
+            >
+              <UserCircle size={18} />
+              {customer ? `Hola, ${customer.name.split(" ")[0]}` : "Mi cuenta"}
+            </Link>
             <button
               className="rounded-lg p-2 text-gray-600 hover:bg-gray-100 dark:text-gray-300 dark:hover:bg-gray-800"
               onClick={toggle}
@@ -210,7 +219,12 @@ export default function StorefrontPage() {
         onRemove={removeLine}
         onCheckout={() => setCheckoutOpen(true)}
       />
-      <CheckoutModal open={checkoutOpen} onClose={() => setCheckoutOpen(false)} onConfirm={handleConfirmOrder} />
+      <CheckoutModal
+        open={checkoutOpen}
+        onClose={() => setCheckoutOpen(false)}
+        onConfirm={handleConfirmOrder}
+        prefill={customer ? { name: customer.name, whatsapp: customer.whatsapp, address: customer.address } : null}
+      />
     </div>
   );
 }

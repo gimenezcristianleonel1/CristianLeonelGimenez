@@ -67,7 +67,11 @@ export async function registerPublicOrder(input: PublicOrderInput) {
         notes: input.notes ?? null,
         items: { create: resolvedItems },
       },
-      include: { items: { include: { variant: true } }, customer: true },
+      include: {
+        items: { include: { variant: true } },
+        // Nunca incluir passwordHash en una respuesta de un endpoint público.
+        customer: { select: { id: true, name: true, whatsapp: true, address: true, email: true, createdAt: true } },
+      },
     });
 
     for (const item of resolvedItems) {
@@ -128,8 +132,11 @@ export async function getCustomerWithStats(customerId: number) {
     }
   }
 
+  // Nunca devolver passwordHash, ni siquiera a rutas de administrador.
+  const { passwordHash: _passwordHash, ...safeCustomer } = customer;
+
   return {
-    customer,
+    customer: safeCustomer,
     totalSpent,
     volumeByUnit: Array.from(volumeByUnit.entries()).map(([unit, quantity]) => ({ unit, quantity })),
     orderCount: customer.orders.length,

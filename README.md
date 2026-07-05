@@ -267,7 +267,28 @@ y dirección de envío (obligatorios), y entonces:
   `/admin/ventas` y `/admin/caja`); ambos descuentan el mismo stock real de
   `ProductVariant`.
 
-### 8. Acceso de administrador
+### 8. Cuentas de cliente (opcionales)
+
+Además del checkout como invitado, la tienda tiene cuentas de cliente
+opcionales con email + contraseña, **100% locales** (no usan ningún proveedor
+de autenticación externo; el hash de contraseña se guarda en la propia base
+con `scrypt` + salt, vía Node `crypto`, sin librerías de terceros):
+
+- **`/mi-cuenta/registro`** y **`/mi-cuenta/login`**: pantallas grandes,
+  separadas del acceso de administrador (que sigue siendo el enlace chico
+  "Acceso administrador" al pie de la tienda). Un botón "Mi cuenta" en el
+  header de la tienda lleva a estas pantallas o al panel del cliente si ya
+  inició sesión.
+- Al registrarse con un WhatsApp que ya hizo pedidos como invitado, la cuenta
+  nueva **hereda ese historial** en lugar de duplicar el cliente.
+- **`/mi-cuenta`** (protegida): perfil, dirección de envío guardada
+  (editable, se autocompleta en el checkout la próxima vez) e historial
+  completo de pedidos con sus estados.
+- La sesión de cliente es independiente de la de administrador (cookie y
+  secreto propios, `CUSTOMER_SESSION_SECRET`); ninguna de las dos rutas
+  interfiere con la otra.
+
+### 9. Acceso de administrador
 
 El panel `/admin` está protegido por una única contraseña (`ADMIN_PASSWORD`).
 Al iniciar sesión se genera una cookie firmada (HMAC-SHA256) con expiración

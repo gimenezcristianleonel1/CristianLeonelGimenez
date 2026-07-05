@@ -1,16 +1,19 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { MessageCircle, PartyPopper } from "lucide-react";
 import { Modal } from "@/components/ui/Modal";
 import { ApiClientError } from "@/lib/api-client";
 
 export type CheckoutResult = { whatsappLink: string | null };
 
+export type CheckoutPrefill = { name: string; whatsapp: string; address: string | null };
+
 export function CheckoutModal({
   open,
   onClose,
   onConfirm,
+  prefill,
 }: {
   open: boolean;
   onClose: () => void;
@@ -20,6 +23,7 @@ export function CheckoutModal({
     customerAddress: string;
     notes: string;
   }) => Promise<CheckoutResult>;
+  prefill?: CheckoutPrefill | null;
 }) {
   const [customerName, setCustomerName] = useState("");
   const [customerWhatsapp, setCustomerWhatsapp] = useState("");
@@ -28,6 +32,14 @@ export function CheckoutModal({
   const [error, setError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
   const [result, setResult] = useState<CheckoutResult | null>(null);
+
+  useEffect(() => {
+    if (open && prefill) {
+      setCustomerName(prefill.name);
+      setCustomerWhatsapp(prefill.whatsapp);
+      setCustomerAddress(prefill.address ?? "");
+    }
+  }, [open, prefill]);
 
   function reset() {
     setCustomerName("");

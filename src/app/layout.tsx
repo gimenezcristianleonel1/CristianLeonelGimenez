@@ -3,6 +3,7 @@ import { Bitter } from "next/font/google";
 import "./globals.css";
 import { ThemeProvider } from "@/components/providers/ThemeProvider";
 import { AppConfigProvider } from "@/components/providers/AppConfigProvider";
+import { CustomerAuthProvider } from "@/components/providers/CustomerAuthProvider";
 
 const bitter = Bitter({
   subsets: ["latin"],
@@ -21,7 +22,9 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
     <html lang="es" className={bitter.variable}>
       <body>
         <ThemeProvider>
-          <AppConfigProvider>{children}</AppConfigProvider>
+          <AppConfigProvider>
+            <CustomerAuthProvider>{children}</CustomerAuthProvider>
+          </AppConfigProvider>
         </ThemeProvider>
       </body>
     </html>

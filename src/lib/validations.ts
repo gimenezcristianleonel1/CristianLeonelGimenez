@@ -180,3 +180,24 @@ export const orderStatusUpdateSchema = z.object({
   paymentStatus: paymentStatusEnum.optional(),
   shippingStatus: shippingStatusEnum.optional(),
 });
+
+export const customerRegisterSchema = z.object({
+  name: z.string().min(1, "El nombre es obligatorio"),
+  whatsapp: z
+    .string()
+    .min(6, "Ingresá un número de WhatsApp válido")
+    .transform((v) => v.replace(/[^0-9]/g, "")),
+  email: z.string().email("Ingresá un email válido"),
+  password: z.string().min(6, "La contraseña debe tener al menos 6 caracteres"),
+  address: z.string().optional().nullable(),
+});
+
+export const customerLoginSchema = z.object({
+  email: z.string().email("Ingresá un email válido"),
+  password: z.string().min(1, "Ingresá tu contraseña"),
+});
+
+export const customerProfileUpdateSchema = z.object({
+  name: z.string().min(1).optional(),
+  address: z.string().optional().nullable(),
+});

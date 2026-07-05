@@ -348,13 +348,15 @@ model Benefit {
 // Cliente identificado por su WhatsApp: se crea o reutiliza automáticamente
 // al confirmar un pedido desde la tienda pública.
 model Customer {
-  id        Int      @id @default(autoincrement())
-  name      String
-  whatsapp  String   @unique
-  address   String?
-  createdAt DateTime @default(now())
+  id           Int      @id @default(autoincrement())
+  name         String
+  whatsapp     String   @unique
+  address      String?
+  email        String?  @unique
+  passwordHash String? // solo presente si el cliente creó una cuenta (registro opcional)
+  createdAt    DateTime @default(now())
 
-  orders    Order[]
+  orders       Order[]
 
   @@map("customers")
 }

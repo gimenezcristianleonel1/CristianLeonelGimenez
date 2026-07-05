@@ -20,7 +20,7 @@ export async function GET(request: NextRequest) {
         skip: (page - 1) * pageSize,
         take: pageSize,
         include: {
-          customer: true,
+          customer: { select: { id: true, name: true, whatsapp: true, address: true, email: true, createdAt: true } },
           items: { include: { variant: true } },
         },
       }),

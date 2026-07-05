@@ -11,7 +11,10 @@ export async function GET(_request: NextRequest, { params }: Params) {
     const id = Number(params.id);
     const order = await prisma.order.findUnique({
       where: { id },
-      include: { customer: true, items: { include: { variant: { include: { product: true } } } } },
+      include: {
+        customer: { select: { id: true, name: true, whatsapp: true, address: true, email: true, createdAt: true } },
+        items: { include: { variant: { include: { product: true } } } },
+      },
     });
     if (!order) throw new AppError("Pedido no encontrado", 404);
     return jsonOk(order);
