@@ -1,5 +1,9 @@
 [build]
-  command = "npx prisma generate && npx prisma migrate deploy && npm run build"
+  # No corremos "prisma migrate deploy" acá: el build de Netlify solo tiene
+  # salida IPv4 y la conexión directa de Supabase (puerto 5432, usada para
+  # migraciones) requiere IPv6, así que la build nunca puede alcanzar la base.
+  # Las migraciones se aplican aparte (ver README: "Aplicar migraciones").
+  command = "npx prisma generate && npm run build"
 
 [build.environment]
   NODE_VERSION = "20"

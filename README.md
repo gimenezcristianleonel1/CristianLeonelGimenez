@@ -129,14 +129,40 @@ npm run dev
    y usa el `netlify.toml` incluido (que ya define el build command y el
    plugin `@netlify/plugin-nextjs`).
 3. En **Site settings > Environment variables**, cargá:
-   - `DATABASE_URL` y `DIRECT_URL` (las mismas del paso de instalación local).
+   - `DATABASE_URL` y `DIRECT_URL` (las mismas del paso de instalación local,
+     usá la cadena de **connection pooling** para ambas — ver más abajo).
    - `ADMIN_PASSWORD`
    - `ADMIN_SESSION_SECRET`
-4. Desplegá. El build corre automáticamente `prisma generate` y
-   `prisma migrate deploy` antes de compilar, así que la base queda al día en
-   cada deploy sin pasos manuales.
+4. Desplegá. El build solo corre `prisma generate` (no requiere conexión a la
+   base) y `next build`.
 5. Una vez desplegado, entrá a `/admin/configuracion` y cargá el nombre del
    negocio, moneda y número de WhatsApp real de la tienda.
+
+### Por qué el build no corre las migraciones
+
+La conexión **directa** de Supabase (puerto `5432`, la que usan las
+migraciones) requiere salida **IPv6**, y el entorno de build de Netlify solo
+tiene salida IPv4 — por eso `prisma migrate deploy` ahí falla con "can't
+reach database server". La solución es no depender de esa conexión durante
+el build:
+
+- El **runtime** de la app (las funciones serverless que atienden la tienda
+  y el admin) usa la cadena de **connection pooling** (puerto `6543`, vía
+  Supavisor), que sí soporta IPv4 y es la recomendada para entornos
+  serverless — por eso `DATABASE_URL` y `DIRECT_URL` pueden apuntar ambas a
+  esa misma cadena pooled en Netlify.
+- Las **migraciones** (`prisma migrate deploy`) se corren aparte, desde un
+  lugar con salida IPv6 (tu máquina local, o cualquier CI con IPv6). Cada vez
+  que cambies `prisma/schema.prisma` y generes una migración nueva, corré
+  localmente:
+
+  ```bash
+  npx prisma migrate deploy
+  ```
+
+  apuntando `DATABASE_URL`/`DIRECT_URL` a la base de producción. El esquema
+  actual (incluyendo `Customer`, `Order`, `OrderItem` y `Benefit`) ya está
+  aplicado en el proyecto de Supabase de este repo.
 
 **Sobre la base de datos gratuita:** los proyectos gratuitos de Supabase se
 pausan automáticamente tras ~1 semana sin actividad (no se pierden datos,
