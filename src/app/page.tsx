@@ -32,14 +32,23 @@ type Catalog = {
 
 export default function StorefrontPage() {
   const [catalog, setCatalog] = useState<Catalog | null>(null);
+  const [catalogError, setCatalogError] = useState<string | null>(null);
   const [cart, setCart] = useState<CartLine[]>([]);
   const [cartOpen, setCartOpen] = useState(false);
   const [checkoutOpen, setCheckoutOpen] = useState(false);
   const { theme, toggle } = useTheme();
   const { customer } = useCustomerAuth();
 
+  function loadCatalog() {
+    setCatalogError(null);
+    api
+      .get<Catalog>("/api/public/catalog")
+      .then(setCatalog)
+      .catch(() => setCatalogError("No se pudieron cargar los productos. Probá recargar la página."));
+  }
+
   useEffect(() => {
-    api.get<Catalog>("/api/public/catalog").then(setCatalog);
+    loadCatalog();
   }, []);
 
   const currency = catalog?.currencySymbol ?? "$";
@@ -180,7 +189,14 @@ export default function StorefrontPage() {
 
         <section>
           <h2 className="mb-3 text-lg font-semibold">Catálogo</h2>
-          {!catalog ? (
+          {catalogError ? (
+            <div className="rounded-lg border border-red-200 bg-red-50 p-4 text-sm text-red-700 dark:border-red-900/50 dark:bg-red-900/10 dark:text-red-400">
+              <p>{catalogError}</p>
+              <button className="btn-secondary mt-3" onClick={loadCatalog}>
+                Reintentar
+              </button>
+            </div>
+          ) : !catalog ? (
             <p className="text-sm text-gray-500">Cargando productos...</p>
           ) : catalog.products.length === 0 ? (
             <p className="text-sm text-gray-500">Todavía no hay productos publicados.</p>
@@ -193,6 +209,7 @@ export default function StorefrontPage() {
                     productName={product.name}
                     description={product.description}
                     imageUrl={product.imageUrl}
+                    categoryName={product.categoryName}
                     variant={variant}
                     currency={currency}
                     onAdd={() => addToCart(variant.variantId)}

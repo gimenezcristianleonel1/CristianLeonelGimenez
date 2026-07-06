@@ -15,6 +15,7 @@ export function ProductCard({
   productName,
   description,
   imageUrl,
+  categoryName,
   variant,
   currency,
   onAdd,
@@ -22,6 +23,7 @@ export function ProductCard({
   productName: string;
   description: string | null;
   imageUrl: string | null;
+  categoryName?: string | null;
   variant: StoreVariant;
   currency: string;
   onAdd: () => void;
@@ -49,6 +51,11 @@ export function ProductCard({
         )}
       </div>
       <div className="flex flex-1 flex-col p-4">
+        {categoryName && (
+          <span className="mb-1 w-fit rounded-full bg-brand-100 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-brand-700 dark:bg-brand-900/30 dark:text-brand-400">
+            {categoryName}
+          </span>
+        )}
         <p className="font-semibold">{label}</p>
         {description && <p className="mt-1 line-clamp-2 text-xs text-gray-500 dark:text-gray-400">{description}</p>}
         <div className="mt-2 flex items-center gap-2">
