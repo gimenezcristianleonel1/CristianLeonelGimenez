@@ -8,6 +8,10 @@ import { getFieldLabels } from "@/lib/config";
 // Acepta un array de { fieldKey, label } para actualizar varias etiquetas a la vez.
 const labelListSchema = z.array(fieldLabelSchema);
 
+// Ver comentario en config/settings/route.ts: sin esto, Next optimiza esta
+// ruta como estática (solo GET/HEAD) y el PUT rompe en producción.
+export const dynamic = "force-dynamic";
+
 export async function GET() {
   try {
     const labels = await getFieldLabels();

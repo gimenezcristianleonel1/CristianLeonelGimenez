@@ -7,6 +7,11 @@ import { getSettings } from "@/lib/config";
 
 const settingListSchema = z.array(settingSchema);
 
+// El handler GET no usa ninguna API dinámica (cookies, headers, searchParams),
+// así que Next.js optimiza esta ruta como estática en el build de producción.
+// Eso deja la ruta en solo GET/HEAD y rompe PUT (405): forzamos render dinámico.
+export const dynamic = "force-dynamic";
+
 export async function GET() {
   try {
     const settings = await getSettings();
