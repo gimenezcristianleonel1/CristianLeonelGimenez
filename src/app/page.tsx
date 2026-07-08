@@ -11,6 +11,7 @@ import { ProductCard, StoreVariant } from "@/components/store/ProductCard";
 import { CartDrawer, CartLine } from "@/components/store/CartDrawer";
 import { CheckoutModal } from "@/components/store/CheckoutModal";
 import { buildWhatsAppLink, buildWhatsAppOrderMessage } from "@/lib/whatsapp";
+import { applyVolumeDiscount } from "@/lib/volumePricing";
 
 type CatalogProduct = {
   productId: number;
@@ -116,7 +117,7 @@ export default function StorefrontPage() {
     customerAddress: string;
     notes: string;
   }) {
-    const total = cart.reduce((acc, l) => acc + l.quantity * l.unitPrice, 0);
+    const total = cart.reduce((acc, l) => acc + l.quantity * applyVolumeDiscount(l.unitPrice, l.quantity), 0);
     await api.post("/api/public/orders", {
       items: cart.map((l) => ({ variantId: l.variantId, quantity: l.quantity })),
       customerName: data.customerName,

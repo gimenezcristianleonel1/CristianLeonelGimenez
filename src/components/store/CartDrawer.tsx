@@ -2,7 +2,10 @@
 
 import { Minus, Plus, ShoppingCart, Trash2, X } from "lucide-react";
 import { formatCurrency } from "@/lib/format";
+import { applyVolumeDiscount, volumeDiscountPercent } from "@/lib/volumePricing";
 
+// unitPrice es el precio regular (ya con beneficios vigentes aplicados);
+// el descuento por volumen se calcula en el momento según la cantidad.
 export type CartLine = { variantId: number; name: string; quantity: number; unitPrice: number; maxStock: number };
 
 export function CartDrawer({
@@ -22,7 +25,7 @@ export function CartDrawer({
   onRemove: (variantId: number) => void;
   onCheckout: () => void;
 }) {
-  const total = lines.reduce((acc, l) => acc + l.quantity * l.unitPrice, 0);
+  const total = lines.reduce((acc, l) => acc + l.quantity * applyVolumeDiscount(l.unitPrice, l.quantity), 0);
 
   if (!open) return null;
 
@@ -41,11 +44,21 @@ export function CartDrawer({
 
         <div className="flex-1 space-y-3 overflow-y-auto">
           {lines.length === 0 && <p className="text-sm text-gray-400">Tu carrito está vacío.</p>}
-          {lines.map((line) => (
+          {lines.map((line) => {
+            const discountPercent = volumeDiscountPercent(line.quantity);
+            const effectiveUnitPrice = applyVolumeDiscount(line.unitPrice, line.quantity);
+            return (
             <div key={line.variantId} className="flex items-center justify-between gap-2 border-b border-gray-100 pb-3 dark:border-gray-800">
               <div className="min-w-0 flex-1">
                 <p className="truncate text-sm font-medium">{line.name}</p>
-                <p className="text-xs text-gray-400">{formatCurrency(line.unitPrice, currency)} c/u</p>
+                <p className="text-xs text-gray-400">
+                  {formatCurrency(effectiveUnitPrice, currency)} c/u
+                  {discountPercent > 0 && (
+                    <span className="ml-1 font-semibold text-emerald-600 dark:text-emerald-400">
+                      -{discountPercent}% por volumen
+                    </span>
+                  )}
+                </p>
               </div>
               <div className="flex items-center gap-1">
                 <button className="rounded p-1 hover:bg-gray-100 dark:hover:bg-gray-800" onClick={() => onChangeQty(line.variantId, -1)}>
@@ -67,7 +80,8 @@ export function CartDrawer({
                 </button>
               </div>
             </div>
-          ))}
+            );
+          })}
         </div>
 
         <div className="mt-4 space-y-3 border-t border-gray-100 pt-4 dark:border-gray-800">

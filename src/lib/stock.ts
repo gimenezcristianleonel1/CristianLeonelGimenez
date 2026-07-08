@@ -22,6 +22,10 @@ type StockMovementInput = {
  * Registra un movimiento de stock (entrada o salida) y actualiza el
  * stock cacheado de la variante dentro de una única transacción, evitando
  * que el stock quede negativo de forma inconsistente.
+ *
+ * Si es una ENTRADA con proveedor y costo unitario (compra de insumos), y
+ * hay una caja abierta, registra automáticamente el EGRESO correspondiente
+ * para que la compra quede reflejada en el arqueo sin un paso manual aparte.
  */
 export async function registerStockMovement(input: StockMovementInput) {
   return prisma.$transaction(async (tx) => {
@@ -63,6 +67,21 @@ export async function registerStockMovement(input: StockMovementInput) {
             : { decrement: input.quantity },
       },
     });
+
+    if (input.type === "ENTRADA" && input.supplierId && input.unitCost) {
+      const openSession = await tx.cashSession.findFirst({ where: { status: "ABIERTA" } });
+      if (openSession) {
+        const supplier = await tx.supplier.findUnique({ where: { id: input.supplierId } });
+        await tx.cashMovement.create({
+          data: {
+            cashSessionId: openSession.id,
+            type: "EGRESO",
+            concept: `Compra a proveedor${supplier ? " " + supplier.name : ""}: ${variant.name}`,
+            amount: input.quantity * input.unitCost,
+          },
+        });
+      }
+    }
 
     return movement;
   });
@@ -157,6 +176,7 @@ export async function registerSale(input: SaleInput) {
           type: "SALIDA",
           reason: "VENTA",
           quantity: item.quantity,
+          unitCost: costByVariant.get(item.variantId) ?? 0,
           saleId: sale.id,
         },
       });

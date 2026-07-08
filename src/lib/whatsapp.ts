@@ -1,4 +1,5 @@
 import { formatCurrency } from "./format";
+import { applyVolumeDiscount } from "./volumePricing";
 
 export type WhatsAppCartLine = { name: string; quantity: number; unitPrice: number };
 
@@ -13,7 +14,10 @@ export function buildWhatsAppOrderMessage(
     ? `¡Hola! Soy ${customerName} y quiero hacer un pedido:`
     : "¡Hola! Quiero hacer un pedido:";
   const body = lines
-    .map((l) => `- ${l.quantity}x ${l.name} (${formatCurrency(l.quantity * l.unitPrice, currencySymbol)})`)
+    .map((l) => {
+      const effectiveUnitPrice = applyVolumeDiscount(l.unitPrice, l.quantity);
+      return `- ${l.quantity}x ${l.name} (${formatCurrency(l.quantity * effectiveUnitPrice, currencySymbol)})`;
+    })
     .join("\n");
   const addressLine = customerAddress ? `\nDirección de envío: ${customerAddress}` : "";
   const footer = `Total: ${formatCurrency(total, currencySymbol)}.${addressLine}\n¿Cómo coordinamos el pago y el envío?`;

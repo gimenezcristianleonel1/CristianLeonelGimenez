@@ -2,6 +2,7 @@ import { PaymentStatus, ShippingStatus } from "@prisma/client";
 import { prisma } from "./prisma";
 import { AppError } from "./api-utils";
 import { effectiveSalePrice, getActiveBenefitsMap } from "./stock";
+import { applyVolumeDiscount } from "./volumePricing";
 
 type PublicOrderItemInput = { variantId: number; quantity: number };
 
@@ -43,7 +44,10 @@ export async function registerPublicOrder(input: PublicOrderInput) {
           409
         );
       }
-      const priceAtPurchase = effectiveSalePrice(variant, variant.product, benefitsMap.get(item.variantId));
+      const regularPrice = effectiveSalePrice(variant, variant.product, benefitsMap.get(item.variantId));
+      // Descuento por volumen: se aplica sobre el precio ya resuelto con
+      // beneficios vigentes, según la cantidad pedida de esta línea.
+      const priceAtPurchase = applyVolumeDiscount(regularPrice, item.quantity);
       const subtotal = priceAtPurchase * item.quantity;
       total += subtotal;
       return { variantId: item.variantId, quantity: item.quantity, priceAtPurchase, subtotal };
@@ -94,14 +98,40 @@ export async function registerPublicOrder(input: PublicOrderInput) {
   });
 }
 
-/** Actualiza el estado de pago y/o de envío de un pedido. */
+/**
+ * Actualiza el estado de pago y/o de envío de un pedido. Cuando el pago pasa
+ * a PAGADO (y no lo estaba ya), registra automáticamente el ingreso en la
+ * caja abierta -si hay una- para que las ventas online también entren en el
+ * arqueo de caja, sin duplicar nada: a diferencia de las ventas de mostrador
+ * (que ya se suman directamente desde `sales` al cerrar caja), los pedidos
+ * online no tienen ninguna otra vía que los refleje en cash_movements.
+ */
 export async function updateOrderStatus(
   orderId: number,
   data: { paymentStatus?: PaymentStatus; shippingStatus?: ShippingStatus }
 ) {
-  const order = await prisma.order.findUnique({ where: { id: orderId } });
-  if (!order) throw new AppError("Pedido no encontrado", 404);
-  return prisma.order.update({ where: { id: orderId }, data });
+  return prisma.$transaction(async (tx) => {
+    const order = await tx.order.findUnique({ where: { id: orderId } });
+    if (!order) throw new AppError("Pedido no encontrado", 404);
+
+    const updated = await tx.order.update({ where: { id: orderId }, data });
+
+    if (data.paymentStatus === "PAGADO" && order.paymentStatus !== "PAGADO") {
+      const openSession = await tx.cashSession.findFirst({ where: { status: "ABIERTA" } });
+      if (openSession) {
+        await tx.cashMovement.create({
+          data: {
+            cashSessionId: openSession.id,
+            type: "INGRESO",
+            concept: `Pedido online #${order.id}`,
+            amount: order.total,
+          },
+        });
+      }
+    }
+
+    return updated;
+  });
 }
 
 /**
